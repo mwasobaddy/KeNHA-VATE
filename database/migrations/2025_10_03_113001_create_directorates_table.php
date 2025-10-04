@@ -13,6 +13,10 @@ return new class extends Migration
     {
         Schema::create('directorates', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('region_id')->constrained()->cascadeOnDelete();
+            $table->string('name');
+            $table->string('code')->unique();
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }

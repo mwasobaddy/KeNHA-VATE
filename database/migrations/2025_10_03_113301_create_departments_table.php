@@ -11,8 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('regions', function (Blueprint $table) {
+        Schema::create('departments', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('directorate_id')->constrained()->cascadeOnDelete();
             $table->string('name');
             $table->string('code')->unique();
             $table->boolean('is_active')->default(true);
@@ -25,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('regions');
+        Schema::dropIfExists('departments');
     }
 };
