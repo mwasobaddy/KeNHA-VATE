@@ -95,7 +95,7 @@ new #[Layout('components.layouts.app')] class extends Component {
             'other_names' => 'required|string|max:100',
             'password' => 'required|string|min:8|confirmed',
             'gender' => ['required', Rule::in(array_keys(config('kenhavate.gender_options')))],
-            'mobile_phone' => 'required|string|regex:/^\+?[1-9]\d{1,14}$/',
+            'mobile_phone' => 'required|string|regex:/^\+254\d{9}$/',
             'department_id' => 'required|exists:departments,id',
         ];
 
