@@ -62,8 +62,11 @@
     x-transition:leave="transition ease-in duration-300"
     x-transition:leave-start="opacity-100 transform translate-y-0"
     x-transition:leave-end="opacity-0 transform -translate-y-2"
-    class="fixed top-4 right-4 z-50 max-w-sm w-full {{ $bgColor }} border rounded-lg shadow-lg p-4"
+    class="fixed top-4 right-4 z-50 max-w-sm w-full {{ $bgColor }} border rounded-lg shadow-lg p-4 space-y-4"
     role="alert"
+    style="margin-top: calc(4rem * var(--popup-index, 0));"
+    x-init="$el.style.setProperty('--popup-index', $el.dataset.index || 0)"
+    data-index="{{ $loop->index }}"
 >
     <div class="flex items-start">
         <div class="flex-shrink-0">

@@ -30,6 +30,36 @@ new class extends Component {
             // Clear the session notifications after displaying them
             session()->forget('popup_notifications');
         }
+
+        // Check for immediate popup notification (from redirects)
+        $immediateNotification = session('immediate_popup_notification', null);
+        if ($immediateNotification) {
+            $this->notifications[] = [
+                'id' => uniqid('popup-'),
+                'type' => $immediateNotification['type'] ?? 'info',
+                'title' => $immediateNotification['title'] ?? '',
+                'message' => $immediateNotification['message'] ?? '',
+                'duration' => $immediateNotification['duration'] ?? 5000,
+            ];
+            // Clear the immediate notification after displaying it
+            session()->forget('immediate_popup_notification');
+        }
+    }
+
+    public function updated(): void
+    {
+        // Check for immediate popup notifications dispatched from other components
+        $immediateNotification = session('immediate_popup_notification', null);
+        if ($immediateNotification) {
+            $this->notifications[] = [
+                'id' => uniqid('popup-'),
+                'type' => $immediateNotification['type'] ?? 'info',
+                'title' => $immediateNotification['title'] ?? '',
+                'message' => $immediateNotification['message'] ?? '',
+                'duration' => $immediateNotification['duration'] ?? 5000,
+            ];
+            session()->forget('immediate_popup_notification');
+        }
     }
 
     /**
