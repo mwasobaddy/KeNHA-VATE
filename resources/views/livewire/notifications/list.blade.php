@@ -5,12 +5,14 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Volt\Component;
 
 new class extends Component {
-    public $notifications = [];
+    public $notifications;
     public bool $showAll = false;
     public int $unreadCount = 0;
+    public bool $loading = false;
 
     public function mount(): void
     {
+        $this->notifications = collect();
         if (Auth::check()) {
             $this->loadNotifications();
         }
@@ -44,10 +46,35 @@ new class extends Component {
 
     public function markAllAsRead(): void
     {
-        $user = Auth::user();
-        $user->notifications()->unread()->update(['read_at' => now()]);
-
-        $this->loadNotifications();
+        try {
+            $this->loading = true;
+            
+            $user = Auth::user();
+            if ($user) {
+                $updated = $user->notifications()->unread()->update(['read_at' => now()]);
+                
+                if ($updated > 0) {
+                    // Small delay to ensure database operation completes
+                    usleep(1000);
+                    $this->loadNotifications();
+                    $this->dispatch('notifications-updated');
+                    
+                    // Show success message
+                    $this->dispatch('showSuccess', 'Success', 'All notifications marked as read.');
+                }
+            }
+        } catch (\Exception $e) {
+            // Log the error
+            \Log::error('Error marking notifications as read', [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage()
+            ]);
+            
+            // Show error message
+            $this->dispatch('showError', 'Error', 'Failed to mark notifications as read. Please try again.');
+        } finally {
+            $this->loading = false;
+        }
     }
 
     public function toggleShowAll(): void
@@ -58,7 +85,7 @@ new class extends Component {
 }; ?>
 
 @if($notifications->count() > 0)
-<div class="space-y-4">
+<div class="space-y-4" wire:key="notifications-container-{{ auth()->id() }}">
     <!-- Header -->
     <div class="flex items-center justify-between">
         <h3 class="text-lg font-medium text-zinc-900 dark:text-zinc-100">
@@ -76,8 +103,12 @@ new class extends Component {
                     variant="ghost"
                     size="sm"
                     wire:click="markAllAsRead"
+                    wire:loading.attr="disabled"
+                    wire:loading.class="opacity-50 cursor-not-allowed"
+                    :disabled="$loading"
                 >
-                    {{ __('Mark all read') }}
+                    <span wire:loading.remove>{{ __('Mark all read') }}</span>
+                    <span wire:loading>Marking...</span>
                 </flux:button>
             @endif
 
@@ -94,7 +125,8 @@ new class extends Component {
     <!-- Notifications List -->
     <div class="space-y-3">
         @foreach($notifications as $notification)
-            <div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 {{ $notification->isRead() ? 'opacity-75' : 'border-l-4 border-l-blue-500' }}">
+            <div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 {{ $notification->isRead() ? 'opacity-75' : 'border-l-4 border-l-blue-500' }}"
+                 wire:key="notification-{{ $notification->id }}">
                 <div class="flex items-start justify-between">
                     <div class="flex-1">
                         <div class="flex items-center gap-2 mb-1">
@@ -159,7 +191,7 @@ new class extends Component {
     @endif
 </div>
 @else
-<div class="text-center py-8">
+<div class="text-center py-8" wire:key="no-notifications-{{ auth()->id() }}">
     <flux:icon name="bell" class="w-12 h-12 text-zinc-400 mx-auto mb-4" />
     <h3 class="text-lg font-medium text-zinc-900 dark:text-zinc-100 mb-2">
         {{ __('No notifications') }}

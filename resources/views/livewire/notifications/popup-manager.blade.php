@@ -128,13 +128,14 @@ new class extends Component {
 }; ?>
 
 <div class="fixed top-0 right-0 z-50 pointer-events-none">
-    @foreach($notifications as $notification)
+    @foreach($notifications as $index => $notification)
         <x-notifications.popup
             :type="$notification['type']"
             :title="$notification['title']"
             :message="$notification['message']"
             :duration="$notification['duration']"
             :id="$notification['id']"
+            :index="$index"
             class="pointer-events-auto"
         />
     @endforeach

@@ -4,7 +4,8 @@
     'title' => '',
     'message' => '',
     'duration' => 5000,
-    'id' => null
+    'id' => null,
+    'index' => 0
 ])
 
 @php
@@ -66,7 +67,7 @@
     role="alert"
     style="margin-top: calc(4rem * var(--popup-index, 0));"
     x-init="$el.style.setProperty('--popup-index', $el.dataset.index || 0)"
-    data-index="{{ $loop->index }}"
+    data-index="{{ $index }}"
 >
     <div class="flex items-start">
         <div class="flex-shrink-0">
