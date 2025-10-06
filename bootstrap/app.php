@@ -11,7 +11,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        //
+        $middleware->alias([
+            'check.account.status' => \App\Http\Middleware\CheckAccountStatus::class,
+            'check.profile.completion' => \App\Http\Middleware\CheckProfileCompletion::class,
+            'check.terms.accepted' => \App\Http\Middleware\CheckTermsAccepted::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
