@@ -8,7 +8,16 @@ use App\Services\UserService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\Rule;
-use Livewire\Volt\Component;
+us                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <flux:input wire:model="username" label="Username" type="text" required autofocus autocomplete="username" />
+
+                    <div>
+                        <flux:input wire:model="email" :label="__('Email')" type="email" required autocomplete="email" disabled />
+                        <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                            Email cannot be changed. Contact administrator if you need to update your email address.
+                        </p>
+                    </div>
+                </div>ewire\Volt\Component;
 
 new class extends Component {
     public string $username = '';
@@ -26,7 +35,7 @@ new class extends Component {
     public ?string $employment_type = null;
     public ?string $supervisor_email = null;
     public bool $is_initial_setup = false;
-    public bool $is_kenha_staff = false;
+    public bool $is_kenha_staff = true;
 
     public $regions = [];
     public $departments = [];
@@ -151,19 +160,26 @@ new class extends Component {
     protected function getValidationRules($user): array
     {
         $rules = [
-            'username' => ['required', 'string', 'max:255'],
+            'username' => [
+                'required',
+                'string',
+                'min:4',
+                'max:15',
+                'regex:/^[a-zA-Z0-9](?:[a-zA-Z0-9._]*[a-zA-Z0-9])?$/',
+                Rule::unique(User::class)->ignore($user->id)
+            ],
             'email' => [
                 'required',
                 'string',
                 'lowercase',
                 'email',
-                'max:255',
-                Rule::unique(User::class)->ignore($user->id)
+                'max:255'
+                // Note: Email cannot be changed by user - contact admin if needed
             ],
             'first_name' => $this->is_initial_setup ? 'required|string|max:100' : 'nullable|string|max:100',
             'other_names' => $this->is_initial_setup ? 'required|string|max:100' : 'nullable|string|max:100',
             'gender' => $this->is_initial_setup ? ['required', Rule::in(array_keys(config('kenhavate.gender_options')))] : ['nullable', Rule::in(array_keys(config('kenhavate.gender_options')))],
-            'mobile_phone' => $this->is_initial_setup ? 'required|string|regex:/^\+?[1-9]\d{1,14}$/' : 'nullable|string|regex:/^\+?[1-9]\d{1,14}$/',
+            'mobile_phone' => $this->is_initial_setup ? 'required|string|regex:/^\+254\d{9}$/' : 'nullable|string|regex:/^\+254\d{9}$/',
             'department_id' => $this->is_initial_setup ? 'required|exists:departments,id' : 'nullable|exists:departments,id',
         ];
 
