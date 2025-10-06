@@ -12,7 +12,7 @@ class CheckProfileCompletion
         $user = $request->user();
 
         if (!$user->staff || !$user->staff->isProfileComplete()) {
-            return redirect()->route('profile.setup');
+            return redirect()->route('profile.edit');
         }
 
         return $next($request);

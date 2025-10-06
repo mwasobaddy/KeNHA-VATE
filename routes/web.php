@@ -34,9 +34,14 @@ Route::middleware(['auth'])->group(function () {
         )
         ->name('two-factor.show');
 
-    // Profile setup (for new users)
-    Volt::route('profile/setup', 'profile.setup')
-        ->name('profile.setup');
+    // Profile setup (for new users) - redirect to settings profile
+    Route::get('profile/setup', function () {
+        return redirect()->route('profile.edit');
+    })->name('profile.setup');
+    Route::post('profile/setup', function () {
+        // This will be handled by the Livewire component
+        return redirect()->route('terms.show');
+    })->name('profile.complete');
 
     // Terms and conditions
     Volt::route('terms-conditions', 'terms.show')

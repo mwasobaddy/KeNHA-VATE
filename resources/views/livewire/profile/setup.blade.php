@@ -48,15 +48,14 @@ new #[Layout('components.layouts.app')] class extends Component {
 
         $this->validate($rules);
 
-        // Create staff profile
+                // Create staff profile
         $userService = app(UserService::class);
         $staffData = [
-            'first_name' => $this->first_name,
-            'other_names' => $this->other_names,
-            'password' => $this->password,
-            'gender' => $this->gender,
-            'mobile_phone' => $this->mobile_phone,
-            'department_id' => $this->department_id,
+            'staff_number' => $data['staff_number'] ?? null,
+            'personal_email' => $data['personal_email'] ?? null,
+            'job_title' => $data['job_title'] ?? null,
+            'department_id' => $data['department_id'],
+            'employment_type' => $data['employment_type'] ?? null,
         ];
 
         if ($this->is_kenha_staff) {
@@ -254,8 +253,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                     </flux:select>
                 </div>
             </div>
-        @else
-            <!-- Non-KeNHA Staff Information -->
+
             <div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-6">
                 <h3 class="text-lg font-medium text-zinc-900 dark:text-zinc-100 mb-4">
                     {{ __('Additional Information') }}
@@ -286,33 +284,33 @@ new #[Layout('components.layouts.app')] class extends Component {
                     {{ __('Your supervisor will need to approve your staff status.') }}
                 </p>
             </div>
-        @endif
 
-        <!-- Department Selection -->
-        <div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-6">
-            <h3 class="text-lg font-medium text-zinc-900 dark:text-zinc-100 mb-4">
-                {{ __('Department Assignment') }}
-            </h3>
+            <!-- Department Selection -->
+            <div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-6">
+                <h3 class="text-lg font-medium text-zinc-900 dark:text-zinc-100 mb-4">
+                    {{ __('Department Assignment') }}
+                </h3>
 
-            <flux:select
-                wire:model="department_id"
-                :label="__('Department')"
-                required
-                placeholder="{{ __('Select your department') }}"
-            >
-                @foreach($regions as $region)
-                    <optgroup label="{{ $region->name }}">
-                        @foreach($region->directorates as $directorate)
-                            @foreach($directorate->departments as $department)
-                                <option value="{{ $department->id }}">
-                                    {{ $region->name }} → {{ $directorate->name }} → {{ $department->name }}
-                                </option>
+                <flux:select
+                    wire:model="department_id"
+                    :label="__('Department')"
+                    required
+                    placeholder="{{ __('Select your department') }}"
+                >
+                    @foreach($regions as $region)
+                        <optgroup label="{{ $region->name }}">
+                            @foreach($region->directorates as $directorate)
+                                @foreach($directorate->departments as $department)
+                                    <option value="{{ $department->id }}">
+                                        {{ $region->name }} → {{ $directorate->name }} → {{ $department->name }}
+                                    </option>
+                                @endforeach
                             @endforeach
-                        @endforeach
-                    </optgroup>
-                @endforeach
-            </flux:select>
-        </div>
+                        </optgroup>
+                    @endforeach
+                </flux:select>
+            </div>
+        @endif
 
         <!-- Submit Button -->
         <div class="flex justify-end">

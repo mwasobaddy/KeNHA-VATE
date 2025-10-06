@@ -1,22 +1,69 @@
 <?php
 
+use App\Models\Department;
+use App\Models\Region;
 use App\Models\User;
+use App\Services\StaffService;
+use App\Services\UserService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\Rule;
 use Livewire\Volt\Component;
 
 new class extends Component {
-    public string $name = '';
+    public string $username = '';
     public string $email = '';
+    public string $first_name = '';
+    public string $other_names = '';
+    public string $gender = '';
+    public string $mobile_phone = '';
+    public string $password = '';
+    public string $password_confirmation = '';
+    public ?string $staff_number = null;
+    public ?string $personal_email = null;
+    public ?string $job_title = null;
+    public ?int $department_id = null;
+    public ?string $employment_type = null;
+    public ?string $supervisor_email = null;
+    public bool $is_initial_setup = false;
+    public bool $is_kenha_staff = false;
+
+    public $regions = [];
+    public $departments = [];
 
     /**
      * Mount the component.
      */
     public function mount(): void
     {
-        $this->name = Auth::user()->name;
-        $this->email = Auth::user()->email;
+        $user = Auth::user();
+
+        // Check if this is initial profile setup
+        $this->is_initial_setup = !$user->staff || !$user->staff->isProfileComplete();
+
+        $this->username = $user->username;
+        $this->email = $user->email;
+        $this->first_name = $user->first_name ?: '';
+        $this->other_names = $user->other_names ?: '';
+        $this->gender = $user->gender ?: '';
+        $this->mobile_phone = $user->mobile_phone ?: '';
+
+        // Load staff data if exists
+        if ($user->staff) {
+            $this->staff_number = $user->staff->staff_number;
+            $this->personal_email = $user->staff->personal_email;
+            $this->job_title = $user->staff->job_title;
+            $this->department_id = $user->staff->department_id;
+            $this->employment_type = $user->staff->employment_type;
+            $this->supervisor_email = $user->staff->supervisor?->email;
+            $this->is_kenha_staff = !empty($user->staff->staff_number);
+        }
+
+        // Determine if user is KeNHA staff based on email
+        $isKenhaEmail = str_ends_with($user->email, '@kenha.co.ke');
+        if ($isKenhaEmail && !$this->is_kenha_staff) {
+            $this->is_kenha_staff = true;
+        }
     }
 
     /**
@@ -25,10 +72,86 @@ new class extends Component {
     public function updateProfileInformation(): void
     {
         $user = Auth::user();
+        $rules = $this->getValidationRules($user);
 
-        $validated = $this->validate([
-            'name' => ['required', 'string', 'max:255'],
+        $validated = $this->validate($rules);
 
+        // Update user basic info
+        $user->fill([
+            'username' => $validated['username'] ?? $user->username,
+            'first_name' => $validated['first_name'],
+            'other_names' => $validated['other_names'],
+            'gender' => $validated['gender'],
+            'mobile_phone' => $validated['mobile_phone'],
+            'email' => $validated['email'],
+        ]);
+
+        // Set password during initial setup
+        if ($this->is_initial_setup && isset($validated['password'])) {
+            $user->password = bcrypt($validated['password']);
+        }
+
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null;
+        }
+
+        $user->save();
+
+        // Update or create staff profile
+        $userService = app(UserService::class);
+        $staffData = [
+            'staff_number' => $validated['staff_number'] ?? null,
+            'personal_email' => $validated['personal_email'] ?? null,
+            'job_title' => $validated['job_title'] ?? null,
+            'department_id' => $validated['department_id'],
+            'employment_type' => $validated['employment_type'] ?? null,
+        ];
+
+        if ($this->is_kenha_staff) {
+            $staffData = array_merge($staffData, [
+                'staff_number' => $validated['staff_number'],
+                'personal_email' => $validated['personal_email'],
+                'job_title' => $validated['job_title'],
+                'employment_type' => $validated['employment_type'],
+            ]);
+        } else {
+            $staffData['employment_type'] = $validated['employment_type'];
+            $staffData['supervisor_email'] = $validated['supervisor_email'];
+        }
+
+        if ($user->staff) {
+            // Update existing staff profile
+            $userService->updateStaffProfile($user->staff, $staffData);
+        } else {
+            // Create new staff profile
+            $userService->createStaffProfile($user, $staffData);
+
+            // If not KeNHA staff, request supervisor approval
+            if (!$this->is_kenha_staff && $this->supervisor_email) {
+                $staffService = app(StaffService::class);
+                $staffService->requestSupervisorApproval($user->staff);
+            }
+        }
+
+        // Fire profile completed event for initial setup
+        if ($this->is_initial_setup) {
+            \App\Events\ProfileCompleted::dispatch($user);
+            $this->is_initial_setup = false; // Mark as completed
+            session()->flash('success', 'Profile completed successfully! Please review the terms and conditions.');
+            $this->redirect(route('terms.show'), navigate: true);
+            return;
+        }
+
+        $this->dispatch('profile-updated', username: $user->username);
+    }
+
+    /**
+     * Get validation rules based on user type and setup mode.
+     */
+    protected function getValidationRules($user): array
+    {
+        $rules = [
+            'username' => ['required', 'string', 'max:255'],
             'email' => [
                 'required',
                 'string',
@@ -37,17 +160,55 @@ new class extends Component {
                 'max:255',
                 Rule::unique(User::class)->ignore($user->id)
             ],
-        ]);
+            'first_name' => $this->is_initial_setup ? 'required|string|max:100' : 'nullable|string|max:100',
+            'other_names' => $this->is_initial_setup ? 'required|string|max:100' : 'nullable|string|max:100',
+            'gender' => $this->is_initial_setup ? ['required', Rule::in(array_keys(config('kenhavate.gender_options')))] : ['nullable', Rule::in(array_keys(config('kenhavate.gender_options')))],
+            'mobile_phone' => $this->is_initial_setup ? 'required|string|regex:/^\+?[1-9]\d{1,14}$/' : 'nullable|string|regex:/^\+?[1-9]\d{1,14}$/',
+            'department_id' => $this->is_initial_setup ? 'required|exists:departments,id' : 'nullable|exists:departments,id',
+        ];
 
-        $user->fill($validated);
-
-        if ($user->isDirty('email')) {
-            $user->email_verified_at = null;
+        if ($this->is_initial_setup) {
+            // Add password validation for initial setup
+            $rules['password'] = 'required|string|min:8|confirmed';
         }
 
-        $user->save();
+        if ($this->is_kenha_staff) {
+            $staffRequired = $this->is_initial_setup ? 'required' : 'nullable';
+            $rules = array_merge($rules, [
+                'staff_number' => $this->is_initial_setup ? 'required|string|unique:staff,staff_number,' . ($user->staff?->id ?? 'NULL') : 'nullable|string|unique:staff,staff_number,' . ($user->staff?->id ?? 'NULL'),
+                'personal_email' => 'nullable|email|different:email',
+                'job_title' => $staffRequired . '|string|max:150',
+                'employment_type' => [$staffRequired, Rule::in(array_keys(config('kenhavate.employment_types')))],
+            ]);
+        } elseif ($this->is_initial_setup) {
+            $rules = array_merge($rules, [
+                'employment_type' => ['required', Rule::in(array_keys(config('kenhavate.employment_types')))],
+                'supervisor_email' => [
+                    'required',
+                    'email',
+                    'different:email',
+                    'regex:/@kenha\.co\.ke$/',
+                ],
+            ]);
+        }
 
-        $this->dispatch('profile-updated', name: $user->name);
+        return $rules;
+    }
+
+    /**
+     * Get departments for selected region/directorate.
+     */
+    public function getDepartmentsProperty(): array
+    {
+        if (!$this->department_id) {
+            return [];
+        }
+
+        return Department::active()
+            ->where('id', $this->department_id)
+            ->with('directorate.region')
+            ->get()
+            ->toArray();
     }
 
     /**
@@ -72,12 +233,19 @@ new class extends Component {
 <section class="w-full">
     @include('partials.settings-heading')
 
-    <x-settings.layout :heading="__('Profile')" :subheading="__('Update your name and email address')">
+    <x-settings.layout :heading="$is_initial_setup ? __('Complete Your Profile') : __('Profile')" :subheading="$is_initial_setup ? __('Please complete your profile information to continue') : __('Update your account information')">
         <form wire:submit="updateProfileInformation" class="my-6 w-full space-y-6">
-            <flux:input wire:model="name" :label="__('Name')" type="text" required autofocus autocomplete="name" />
+            <!-- Basic Account Information -->
+            <div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-6">
+                <h3 class="text-lg font-medium text-zinc-900 dark:text-zinc-100 mb-4">
+                    {{ __('Account Information') }}
+                </h3>
 
-            <div>
-                <flux:input wire:model="email" :label="__('Email')" type="email" required autocomplete="email" />
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <flux:input wire:model="username" label="Username" type="text" required autofocus autocomplete="username" />
+
+                    <flux:input wire:model="email" :label="__('Email')" type="email" required autocomplete="email" />
+                </div>
 
                 @if (auth()->user() instanceof \Illuminate\Contracts\Auth\MustVerifyEmail &&! auth()->user()->hasVerifiedEmail())
                     <div>
@@ -98,15 +266,180 @@ new class extends Component {
                 @endif
             </div>
 
+            <!-- Personal Information -->
+            <div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-6">
+                <h3 class="text-lg font-medium text-zinc-900 dark:text-zinc-100 mb-4">
+                    {{ __('Personal Information') }}
+                </h3>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <flux:input
+                        wire:model="first_name"
+                        label="First Name"
+                        :required="$is_initial_setup"
+                    />
+
+                    <flux:input
+                        wire:model="other_names"
+                        label="Other Names"
+                        :required="$is_initial_setup"
+                    />
+
+                    <flux:select
+                        wire:model="gender"
+                        label="Gender"
+                        :required="$is_initial_setup"
+                        placeholder="Select gender"
+                    >
+                        @foreach(config('kenhavate.gender_options') as $value => $label)
+                            <option value="{{ $value }}">{{ $label }}</option>
+                        @endforeach
+                    </flux:select>
+
+                    <flux:input
+                        wire:model="mobile_phone"
+                        label="Mobile Phone"
+                        type="tel"
+                        :required="$is_initial_setup"
+                        placeholder="+254XXXXXXXXX"
+                    />
+                </div>
+            </div>
+
+            @if($is_initial_setup)
+            <!-- Password Setup -->
+            <div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-6">
+                <h3 class="text-lg font-medium text-zinc-900 dark:text-zinc-100 mb-4">
+                    {{ __('Set Password') }}
+                </h3>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <flux:input
+                        wire:model="password"
+                        label="Password"
+                        type="password"
+                        required
+                        autocomplete="new-password"
+                    />
+
+                    <flux:input
+                        wire:model="password_confirmation"
+                        label="Confirm Password"
+                        type="password"
+                        required
+                        autocomplete="new-password"
+                    />
+                </div>
+            </div>
+            @endif
+
+            @if($is_kenha_staff)
+                <!-- KeNHA Staff Information -->
+                <div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-6">
+                    <h3 class="text-lg font-medium text-zinc-900 dark:text-zinc-100 mb-4">
+                        {{ __('KeNHA Staff Information') }}
+                    </h3>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <flux:input
+                            wire:model="staff_number"
+                            label="Staff Number"
+                            required
+                        />
+
+                        <flux:input
+                            wire:model="personal_email"
+                            label="Personal Email (Optional)"
+                            type="email"
+                        />
+
+                        <flux:input
+                            wire:model="job_title"
+                            label="Job Title/Designation"
+                            required
+                        />
+
+                        <flux:select
+                            wire:model="employment_type"
+                            label="Employment Type"
+                            required
+                            placeholder="Select employment type"
+                        >
+                            @foreach(config('kenhavate.employment_types') as $value => $label)
+                                <option value="{{ $value }}">{{ $label }}</option>
+                            @endforeach
+                        </flux:select>
+                    </div>
+                </div>
+                
+
+                <div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-6">
+                    <h3 class="text-lg font-medium text-zinc-900 dark:text-zinc-100 mb-4">
+                        {{ __('Employment Information') }}
+                    </h3>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <flux:select
+                            wire:model="employment_type"
+                            label="Employment Type"
+                            required
+                            placeholder="Select employment type"
+                        >
+                            @foreach(config('kenhavate.employment_types') as $value => $label)
+                                <option value="{{ $value }}">{{ $label }}</option>
+                            @endforeach
+                        </flux:select>
+
+                        <flux:input
+                            wire:model="supervisor_email"
+                            label="Supervisor's Email"
+                            type="email"
+                            required
+                            placeholder="supervisor@kenha.co.ke"
+                        />
+                    </div>
+
+                    <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+                        {{ __('Your supervisor will need to approve your staff status.') }}
+                    </p>
+                </div>
+
+                <!-- Department Selection -->
+                <div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-6">
+                    <h3 class="text-lg font-medium text-zinc-900 dark:text-zinc-100 mb-4">
+                        {{ __('Department Assignment') }}
+                    </h3>
+
+                    <flux:select
+                        wire:model="department_id"
+                        label="Department"
+                        required
+                        placeholder="Select your department"
+                    >
+                        @foreach($regions as $region)
+                            <optgroup label="{{ $region->name }}">
+                                @foreach($region->directorates as $directorate)
+                                    @foreach($directorate->departments as $department)
+                                        <option value="{{ $department->id }}">
+                                            {{ $region->name }} → {{ $directorate->name }} → {{ $department->name }}
+                                        </option>
+                                    @endforeach
+                                @endforeach
+                            </optgroup>
+                        @endforeach
+                    </flux:select>
+                </div>
+            @endif
+
             <div class="flex items-center gap-4">
                 <div class="flex items-center justify-end">
                     <flux:button variant="primary" type="submit" class="w-full" data-test="update-profile-button">
-                        {{ __('Save') }}
+                        {{ $is_initial_setup ? __('Complete Profile') : __('Save') }}
                     </flux:button>
                 </div>
 
                 <x-action-message class="me-3" on="profile-updated">
-                    {{ __('Saved.') }}
+                    {{ $is_initial_setup ? __('Profile completed successfully!') : __('Saved.') }}
                 </x-action-message>
             </div>
         </form>
