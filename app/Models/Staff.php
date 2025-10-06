@@ -79,11 +79,7 @@ class Staff extends Model
      */
     public function isProfileComplete(): bool
     {
-        return !empty($this->first_name) &&
-               !empty($this->other_names) &&
-               !empty($this->gender) &&
-               !empty($this->mobile_phone) &&
-               !empty($this->department_id);
+        return !empty($this->department_id);
     }
 
     /**

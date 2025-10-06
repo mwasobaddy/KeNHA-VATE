@@ -14,18 +14,13 @@ return new class extends Migration
         Schema::create('staff', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->string('first_name');
-            $table->string('other_names');
-            $table->string('password_hash');
-            $table->enum('gender', ['male', 'female', 'other', 'prefer_not_to_say']);
-            $table->string('mobile_phone');
             $table->string('staff_number')->nullable()->unique();
             $table->string('personal_email')->nullable();
             $table->timestamp('personal_email_verified_at')->nullable();
             $table->string('job_title')->nullable();
-            $table->foreignId('department_id')->constrained();
+            $table->foreignId('department_id')->constrained()->nullable();
             $table->enum('employment_type', ['permanent', 'contract', 'intern', 'consultant'])->nullable();
-            $table->foreignId('supervisor_id')->nullable()->constrained('users');
+            $table->foreignId('supervisor_id')->nullable()->constrained('users')->nullable();
             $table->timestamp('supervisor_approved_at')->nullable();
             $table->timestamps();
             $table->softDeletes();

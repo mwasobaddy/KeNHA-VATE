@@ -25,7 +25,11 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'name',
+        'username',
+        'first_name',
+        'other_names',
+        'gender',
+        'mobile_phone',
         'email',
         'google_id',
         'account_status',
@@ -65,7 +69,15 @@ class User extends Authenticatable
      */
     public function initials(): string
     {
-        return Str::of($this->name)
+        if ($this->staff) {
+            return Str::of($this->staff->full_name)
+                ->explode(' ')
+                ->take(2)
+                ->map(fn ($word) => Str::substr($word, 0, 1))
+                ->implode('');
+        }
+
+        return Str::of($this->username ?? $this->email)
             ->explode(' ')
             ->take(2)
             ->map(fn ($word) => Str::substr($word, 0, 1))
