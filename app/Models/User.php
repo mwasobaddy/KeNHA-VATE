@@ -97,6 +97,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the unread notifications for this user.
+     */
+    public function unreadNotifications()
+    {
+        return $this->notifications()->unread();
+    }
+
+    /**
      * Get the point transactions for this user.
      */
     public function pointTransactions(): HasMany
