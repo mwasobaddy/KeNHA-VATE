@@ -16,7 +16,7 @@ class UserService
     public function createUser(array $data): User
     {
         return User::create([
-            'name' => $data['name'] ?? '',
+            'username' => $data['username'] ?? '',
             'email' => $data['email'],
             'password' => isset($data['password']) ? Hash::make($data['password']) : null,
             'account_status' => $data['account_status'] ?? 'active',
@@ -34,23 +34,56 @@ class UserService
     }
 
     /**
-     * Create staff profile for user.
+     * Complete user profile.
      */
-    public function createStaffProfile(User $user, array $data): Staff
+    public function completeProfile(User $user, array $data): void
     {
-        return $user->staff()->create([
+        // Update basic profile fields in users table
+        $user->update([
             'first_name' => $data['first_name'],
             'other_names' => $data['other_names'],
-            'password_hash' => Hash::make($data['password']),
             'gender' => $data['gender'],
             'mobile_phone' => $data['mobile_phone'],
-            'staff_number' => $data['staff_number'] ?? null,
-            'personal_email' => $data['personal_email'] ?? null,
-            'job_title' => $data['job_title'] ?? null,
-            'department_id' => $data['department_id'],
-            'employment_type' => $data['employment_type'] ?? null,
-            'supervisor_id' => $data['supervisor_id'] ?? null,
+            'password' => Hash::make($data['password']),
         ]);
+
+        // Prepare staff data
+        $staffData = [
+            'password_hash' => Hash::make($data['password']),
+        ];
+
+        $isKenhaEmail = str_ends_with($user->email, '@kenha.co.ke');
+
+        if ($isKenhaEmail) {
+            $staffData = array_merge($staffData, [
+                'staff_number' => $data['staff_number'],
+                'personal_email' => $data['personal_email'] ?? null,
+                'job_title' => $data['job_title'],
+                'department_id' => $data['department_id'],
+                'employment_type' => $data['employment_type'],
+            ]);
+        } else {
+            if (isset($data['is_kenha_staff']) && $data['is_kenha_staff']) {
+                $staffData = array_merge($staffData, [
+                    'employment_type' => $data['employment_type'],
+                ]);
+
+                // Find supervisor by email
+                if (isset($data['supervisor_email'])) {
+                    $supervisor = User::where('email', $data['supervisor_email'])->first();
+                    if ($supervisor && $supervisor->staff) {
+                        $staffData['supervisor_id'] = $supervisor->staff->id;
+                    }
+                }
+            }
+        }
+
+        // Create or update staff profile
+        if ($user->staff) {
+            $user->staff->update($staffData);
+        } else {
+            $user->staff()->create($staffData);
+        }
     }
 
     /**
