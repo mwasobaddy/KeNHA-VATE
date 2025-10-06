@@ -8,16 +8,7 @@ use App\Services\UserService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\Rule;
-us                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <flux:input wire:model="username" label="Username" type="text" required autofocus autocomplete="username" />
-
-                    <div>
-                        <flux:input wire:model="email" :label="__('Email')" type="email" required autocomplete="email" disabled />
-                        <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                            Email cannot be changed. Contact administrator if you need to update your email address.
-                        </p>
-                    </div>
-                </div>ewire\Volt\Component;
+use Livewire\Volt\Component;
 
 new class extends Component {
     public string $username = '';
@@ -35,7 +26,7 @@ new class extends Component {
     public ?string $employment_type = null;
     public ?string $supervisor_email = null;
     public bool $is_initial_setup = false;
-    public bool $is_kenha_staff = true;
+    public bool $is_kenha_staff = false;
 
     public $regions = [];
     public $departments = [];
@@ -173,13 +164,14 @@ new class extends Component {
                 'string',
                 'lowercase',
                 'email',
+                Rule::unique(User::class)->ignore($user->id),
                 'max:255'
                 // Note: Email cannot be changed by user - contact admin if needed
             ],
             'first_name' => $this->is_initial_setup ? 'required|string|max:100' : 'nullable|string|max:100',
             'other_names' => $this->is_initial_setup ? 'required|string|max:100' : 'nullable|string|max:100',
             'gender' => $this->is_initial_setup ? ['required', Rule::in(array_keys(config('kenhavate.gender_options')))] : ['nullable', Rule::in(array_keys(config('kenhavate.gender_options')))],
-            'mobile_phone' => $this->is_initial_setup ? 'required|string|regex:/^\+254\d{9}$/' : 'nullable|string|regex:/^\+254\d{9}$/',
+            'mobile_phone' => $this->is_initial_setup ? 'required|string|regex:/^\+254\d{9}$/|unique:users,mobile_phone' : 'nullable|string|regex:/^\+254\d{9}$/|unique:users,mobile_phone',
             'department_id' => $this->is_initial_setup ? 'required|exists:departments,id' : 'nullable|exists:departments,id',
         ];
 
@@ -258,9 +250,9 @@ new class extends Component {
                 </h3>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <flux:input wire:model="username" label="Username" type="text" required autofocus autocomplete="username" />
+                    <flux:input wire:model.defer="username" wire:blur="validateOnly('username')" :label="__('Username')" type="text" required autofocus autocomplete="username" />
 
-                    <flux:input wire:model="email" :label="__('Email')" type="email" required autocomplete="email" />
+                    <flux:input wire:model.defer="email" :label="__('Email')" type="email" required autocomplete="email" />
                 </div>
 
                 @if (auth()->user() instanceof \Illuminate\Contracts\Auth\MustVerifyEmail &&! auth()->user()->hasVerifiedEmail())
@@ -290,20 +282,20 @@ new class extends Component {
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <flux:input
-                        wire:model="first_name"
-                        label="First Name"
+                        wire:model.defer="first_name"
+                        :label="__('First Name')"
                         :required="$is_initial_setup"
                     />
 
                     <flux:input
-                        wire:model="other_names"
-                        label="Other Names"
+                        wire:model.defer="other_names"
+                        :label="__('Other Names')"
                         :required="$is_initial_setup"
                     />
 
                     <flux:select
-                        wire:model="gender"
-                        label="Gender"
+                        wire:model.defer="gender"
+                        :label="__('Gender')"
                         :required="$is_initial_setup"
                         placeholder="Select gender"
                     >
@@ -313,8 +305,8 @@ new class extends Component {
                     </flux:select>
 
                     <flux:input
-                        wire:model="mobile_phone"
-                        label="Mobile Phone"
+                        wire:model.defer="mobile_phone"
+                        :label="__('Mobile Phone')"
                         type="tel"
                         :required="$is_initial_setup"
                         placeholder="+254XXXXXXXXX"
@@ -331,19 +323,23 @@ new class extends Component {
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <flux:input
-                        wire:model="password"
-                        label="Password"
+                        wire:model.defer="password"
+                        :label="__('Password')"
                         type="password"
                         required
                         autocomplete="new-password"
+                        :placeholder="__('Password')"
+                        viewable
                     />
 
                     <flux:input
-                        wire:model="password_confirmation"
-                        label="Confirm Password"
+                        wire:model.defer="password_confirmation"
+                        :label="__('Confirm Password')"
                         type="password"
                         required
                         autocomplete="new-password"
+                        :placeholder="__('Confirm Password')"
+                        viewable
                     />
                 </div>
             </div>
@@ -358,26 +354,26 @@ new class extends Component {
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <flux:input
-                            wire:model="staff_number"
-                            label="Staff Number"
+                            wire:model.defer="staff_number"
+                            :label="__('Staff Number')"
                             required
                         />
 
                         <flux:input
-                            wire:model="personal_email"
-                            label="Personal Email (Optional)"
+                            wire:model.defer="personal_email"
+                            :label="__('Personal Email (Optional)')"
                             type="email"
                         />
 
                         <flux:input
-                            wire:model="job_title"
-                            label="Job Title/Designation"
+                            wire:model.defer="job_title"
+                            :label="__('Job Title/Designation')"
                             required
                         />
 
                         <flux:select
-                            wire:model="employment_type"
-                            label="Employment Type"
+                            wire:model.defer="employment_type"
+                            :label="__('Employment Type')"
                             required
                             placeholder="Select employment type"
                         >
@@ -396,8 +392,8 @@ new class extends Component {
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <flux:select
-                            wire:model="employment_type"
-                            label="Employment Type"
+                            wire:model.defer="employment_type"
+                            :label="__('Employment Type')"
                             required
                             placeholder="Select employment type"
                         >
@@ -407,8 +403,8 @@ new class extends Component {
                         </flux:select>
 
                         <flux:input
-                            wire:model="supervisor_email"
-                            label="Supervisor's Email"
+                            wire:model.defer="supervisor_email"
+                            :label="__('Supervisor\'s Email')"
                             type="email"
                             required
                             placeholder="supervisor@kenha.co.ke"
@@ -427,13 +423,13 @@ new class extends Component {
                     </h3>
 
                     <flux:select
-                        wire:model="department_id"
-                        label="Department"
+                        wire:model.defer="department_id"
+                        :label="__('Department')"
                         required
                         placeholder="Select your department"
                     >
                         @foreach($regions as $region)
-                            <optgroup label="{{ $region->name }}">
+                            <optgroup :label="__('{{ $region->name }}')">
                                 @foreach($region->directorates as $directorate)
                                     @foreach($directorate->departments as $department)
                                         <option value="{{ $department->id }}">
