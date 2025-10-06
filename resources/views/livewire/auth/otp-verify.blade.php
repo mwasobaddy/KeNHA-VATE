@@ -104,7 +104,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
         $success = $authService->sendOtp($this->email);
 
         if ($success) {
-            $this->dispatch('otp-resent', message: 'OTP resent to your email address.');
+            $this->dispatch('showSuccess', 'OTP Resent', 'A new OTP has been sent to your email address.');
         } else {
             $this->addError('otp', 'Unable to resend OTP. Please try again.');
         }

@@ -49,14 +49,13 @@ new #[Layout('components.layouts.auth')] class extends Component {
         if ($success) {
             // Store email in session for verification component
             Session::put('otp_email', $this->email);
-            // Store OTP success notification for when user logs in
-            Session::put('pending_notification', [
+            // Store popup notification for display on the OTP verification page
+            Session::put('immediate_popup_notification', [
                 'type' => 'success',
                 'title' => 'OTP Sent Successfully',
                 'message' => 'A one-time password has been sent to your email address. Please check your inbox and enter the code to continue.',
+                'duration' => 5000,
             ]);
-            // Show immediate popup notification
-            $this->dispatch('showSuccess', 'OTP Sent Successfully', 'A one-time password has been sent to your email address. Please check your inbox and enter the code to continue.');
             $this->redirect(route('otp.verify'), navigate: true);
         } else {
             $this->dispatch('showError', 'Failed to Send OTP', 'Unable to send OTP. Please try again.');
