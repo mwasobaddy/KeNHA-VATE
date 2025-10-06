@@ -206,7 +206,7 @@ new class extends Component {
     /**
      * Validate a specific field only.
      */
-    public function validateOnly(string $field): void
+    public function validateField(string $field): void
     {
         $user = Auth::user();
         $rules = $this->getValidationRules($user);
@@ -263,7 +263,7 @@ new class extends Component {
                 </h3>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <flux:input wire:model.defer="username" wire:blur="validateOnly('username')" :label="__('Username')" type="text" required autofocus autocomplete="username" />
+                    <flux:input wire:model.defer="username" wire:blur="validateField('username')" :label="__('Username')" type="text" required autofocus autocomplete="username" />
 
                     <flux:input wire:model.defer="email" :label="__('Email')" type="email" required autocomplete="email" />
                 </div>
