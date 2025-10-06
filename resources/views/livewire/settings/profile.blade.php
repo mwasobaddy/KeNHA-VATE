@@ -204,6 +204,19 @@ new class extends Component {
     }
 
     /**
+     * Validate a specific field only.
+     */
+    public function validateOnly(string $field): void
+    {
+        $user = Auth::user();
+        $rules = $this->getValidationRules($user);
+
+        if (isset($rules[$field])) {
+            $this->validate([$field => $rules[$field]]);
+        }
+    }
+
+    /**
      * Get departments for selected region/directorate.
      */
     public function getDepartmentsProperty(): array
