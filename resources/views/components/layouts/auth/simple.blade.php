@@ -17,6 +17,10 @@
                 </div>
             </div>
         </div>
+
+        {{-- Popup Notifications Manager --}}
+        @livewire('notifications.popup-manager')
+
         @fluxScripts
     </body>
 </html>

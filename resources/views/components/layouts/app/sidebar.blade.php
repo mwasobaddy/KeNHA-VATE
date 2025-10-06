@@ -17,6 +17,46 @@
                 </flux:navlist.group>
             </flux:navlist>
 
+            <!-- Notification Bell -->
+            <flux:dropdown position="bottom" align="start" class="relative">
+                <flux:button
+                    variant="ghost"
+                    size="sm"
+                    class="relative w-full justify-start"
+                    icon="bell"
+                >
+                    {{ __('Notifications') }}
+                    @if(auth()->user()->unreadNotifications()->count() > 0)
+                        <flux:badge
+                            variant="danger"
+                            size="sm"
+                            class="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+                        >
+                            {{ auth()->user()->unreadNotifications()->count() }}
+                        </flux:badge>
+                    @endif
+                </flux:button>
+
+                <flux:menu class="w-80">
+                    <div class="p-4 border-b border-zinc-200 dark:border-zinc-700">
+                        <h3 class="font-semibold text-sm">{{ __('Notifications') }}</h3>
+                        <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                            {{ __('Stay updated with your latest activities') }}
+                        </p>
+                    </div>
+
+                    <div class="max-h-96 overflow-y-auto" wire:ignore>
+                        @livewire('notifications.list')
+                    </div>
+
+                    <div class="p-2 border-t border-zinc-200 dark:border-zinc-700">
+                        <flux:menu.item :href="route('notifications.index')" icon="arrow-right" wire:navigate class="w-full justify-center">
+                            {{ __('View All Notifications') }}
+                        </flux:menu.item>
+                    </div>
+                </flux:menu>
+            </flux:dropdown>
+
             <flux:spacer />
 
             <flux:navlist variant="outline">
@@ -127,6 +167,9 @@
         </flux:header>
 
         {{ $slot }}
+
+        {{-- Popup Notifications Manager --}}
+        @livewire('notifications.popup-manager')
 
         @fluxScripts
     </body>
