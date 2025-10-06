@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class AuthenticationService
@@ -42,9 +43,8 @@ class AuthenticationService
             // Log the attempt
             $this->auditService->log('otp_sent', $user?->id, ['email' => $email]);
 
-            // TODO: Send email with OTP
-            // For now, just log it (in production, use a job to send email)
-            Log::info('OTP generated for user', ['email' => $email, 'otp' => $otp]);
+            // Send OTP email
+            Mail::to($email)->send(new \App\Mail\OtpMail($otp));
 
             return true;
         } catch (\Exception $e) {
