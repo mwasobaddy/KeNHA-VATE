@@ -106,7 +106,7 @@ class UserService
     /**
      * Accept terms and conditions.
      */
-    public function acceptTerms(User $user, string $version = null): void
+    public function acceptTerms(User $user, ?string $version = null): void
     {
         $user->update([
             'terms_accepted_count' => $user->terms_accepted_count + 1,
