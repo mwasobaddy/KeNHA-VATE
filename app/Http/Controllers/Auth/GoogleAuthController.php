@@ -44,14 +44,22 @@ class GoogleAuthController
             $user = User::where('email', $googleUser->getEmail())->first();
 
             if ($user) {
-                // Merge existing user with Google data
-                $user->update([
-                    'google_id' => $googleUser->getId(),
-                    'username' => $googleUser->getName(),
-                    'first_name' => $nameParts[0] ?? '',
-                    'other_names' => $nameParts[1] ?? '',
-                    'email_verified_at' => now(), // Google emails are verified
-                ]);
+                // Only update user data if profile is not complete
+                if (!$this->isProfileComplete($user)) {
+                    // Merge existing user with Google data
+                    $user->update([
+                        'google_id' => $googleUser->getId(),
+                        'username' => $googleUser->getName(),
+                        'first_name' => $nameParts[0] ?? '',
+                        'other_names' => $nameParts[1] ?? '',
+                        'email_verified_at' => now(), // Google emails are verified
+                    ]);
+                } else {
+                    // Profile is complete, just ensure Google ID is set
+                    if (empty($user->google_id)) {
+                        $user->update(['google_id' => $googleUser->getId()]);
+                    }
+                }
             } else {
                 // Create new user
                 $user = User::create([
@@ -89,8 +97,8 @@ class GoogleAuthController
                 'google_id' => $googleUser->getId(),
             ]);
 
-            // Redirect to dashboard or profile setup
-            if ($user->staff && $user->staff->isProfileComplete()) {
+            // Redirect based on profile completion status
+            if ($this->isProfileComplete($user)) {
                 return redirect()->route('dashboard');
             } else {
                 return redirect()->route('profile.edit');
@@ -115,5 +123,24 @@ class GoogleAuthController
     private function isFirstLogin(User $user): bool
     {
         return $user->created_at->diffInMinutes(now()) < 5;
+    }
+
+    /**
+     * Check if user's profile is complete based on their category.
+     */
+    private function isProfileComplete(User $user): bool
+    {
+        // All users must have basic profile info
+        if (empty($user->first_name) || empty($user->other_names) || empty($user->gender) || empty($user->mobile_phone)) {
+            return false;
+        }
+
+        // If user doesn't have a staff record, they're a regular user and profile is complete
+        if (!$user->staff) {
+            return true;
+        }
+
+        // If user has staff record, check staff-specific completion requirements
+        return $user->staff->isProfileComplete();
     }
 }
