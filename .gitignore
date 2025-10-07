@@ -22,8 +22,6 @@ yarn-error.log
 /.vscode
 /.zed
 
-Module-1.md
-copilot-instructions.md
 app/Console/Commands
 tests/
 .timetracker
