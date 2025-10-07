@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Services\StaffService;
 use App\Services\UserService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\Rule;
 use Livewire\Volt\Component;
@@ -37,6 +38,7 @@ new class extends Component {
     public ?string $supervisor_email = null;
     public bool $is_initial_setup = false;
     public bool $is_kenha_staff = false;
+    public bool $is_other_type_staff = false;
 
     public $regions = [];
     public $departments = [];
@@ -82,77 +84,105 @@ new class extends Component {
     public function updateProfileInformation(): void
     {
         $user = Auth::user();
-        $rules = $this->getValidationRules($user);
-
-        $validated = $this->validate($rules);
-
-        // Update user basic info
-        $user->fill([
-            'username' => $validated['username'] ?? $user->username,
-            'first_name' => $validated['first_name'],
-            'other_names' => $validated['other_names'],
-            'gender' => $validated['gender'],
-            'mobile_phone' => $validated['mobile_phone'],
-            'email' => $validated['email'],
+        Log::info('Starting profile update for user: ' . $user->id, [
+            'email' => $user->email,
+            'is_initial_setup' => $this->is_initial_setup,
+            'is_kenha_staff' => $this->is_kenha_staff,
+            'is_other_type_staff' => $this->is_other_type_staff,
         ]);
 
-        // Set password during initial setup
-        if ($this->is_initial_setup && isset($validated['password'])) {
-            $user->password = bcrypt($validated['password']);
-        }
+        try {
+            $rules = $this->getValidationRules($user);
+            $validated = $this->validate($rules);
 
-        if ($user->isDirty('email')) {
-            $user->email_verified_at = null;
-        }
+            // Update user basic info
+            $user->fill([
+                'username' => $validated['username'] ?? $user->username,
+                'first_name' => $validated['first_name'],
+                'other_names' => $validated['other_names'],
+                'gender' => $validated['gender'],
+                'mobile_phone' => $validated['mobile_phone'],
+                'email' => $validated['email'],
+            ]);
 
-        $user->save();
-
-        // Update or create staff profile
-        $userService = app(UserService::class);
-        $staffData = [
-            'first_name' => $validated['first_name'],
-            'other_names' => $validated['other_names'],
-            'gender' => $validated['gender'],
-            'mobile_phone' => $validated['mobile_phone'],
-            'staff_number' => $validated['staff_number'] ?? null,
-            'personal_email' => $validated['personal_email'] ?? null,
-            'job_title' => $validated['job_title'] ?? null,
-            'department_id' => $validated['department_id'],
-            'employment_type' => $validated['employment_type'] ?? null,
-        ];
-
-        // Set supervisor_id if supervisor_email is provided and matches a user
-        if (!$this->is_kenha_staff && !empty($validated['supervisor_email'])) {
-            $supervisor = \App\Models\User::where('email', $validated['supervisor_email'])->first();
-            if ($supervisor && $supervisor->staff) {
-                $staffData['supervisor_id'] = $supervisor->id;
+            // Set password during initial setup
+            if ($this->is_initial_setup && isset($validated['password'])) {
+                $user->password = bcrypt($validated['password']);
             }
-        }
 
-        if ($user->staff) {
-            // Update existing staff profile
-            $userService->updateStaffProfile($user->staff, $staffData);
-        } else {
-            // Create new staff profile
-            $userService->createStaffProfile($user, $staffData);
-
-            // If not KeNHA staff, request supervisor approval
-            if (!$this->is_kenha_staff && $this->supervisor_email) {
-                $staffService = app(StaffService::class);
-                $staffService->requestSupervisorApproval($user->staff);
+            if ($user->isDirty('email')) {
+                $user->email_verified_at = null;
             }
-        }
 
-        // Fire profile completed event for initial setup
-        if ($this->is_initial_setup) {
-            \App\Events\ProfileCompleted::dispatch($user);
-            $this->is_initial_setup = false; // Mark as completed
-            session()->flash('success', 'Profile completed successfully! Please review the terms and conditions.');
-            $this->redirect(route('terms.show'), navigate: true);
-            return;
-        }
+            $user->save();
+            Log::info('User basic info saved successfully for user: ' . $user->id);
 
-        $this->dispatch('profile-updated', username: $user->username);
+            // Update or create staff profile
+            $userService = app(UserService::class);
+            $staffData = [
+                'first_name' => $validated['first_name'],
+                'other_names' => $validated['other_names'],
+                'gender' => $validated['gender'],
+                'mobile_phone' => $validated['mobile_phone'],
+                'staff_number' => $validated['staff_number'] ?? null,
+                'personal_email' => $validated['personal_email'] ?? null,
+                'job_title' => $validated['job_title'] ?? null,
+                'department_id' => $validated['department_id'],
+                'employment_type' => $validated['employment_type'] ?? null,
+            ];
+
+            // Set supervisor_id if supervisor_email is provided and matches a user
+            if (!$this->is_kenha_staff && !empty($validated['supervisor_email'])) {
+                $supervisor = \App\Models\User::where('email', $validated['supervisor_email'])->first();
+                if ($supervisor && $supervisor->staff) {
+                    $staffData['supervisor_id'] = $supervisor->id;
+                    Log::info('Supervisor found and set for user: ' . $user->id, ['supervisor_id' => $supervisor->id]);
+                } else {
+                    Log::warning('Supervisor not found or no staff profile for email: ' . $validated['supervisor_email']);
+                }
+            }
+
+            if ($user->staff) {
+                // Update existing staff profile
+                Log::info('Updating existing staff profile for user: ' . $user->id);
+                $userService->updateStaffProfile($user->staff, $staffData);
+                Log::info('Staff profile updated successfully for user: ' . $user->id);
+            } else {
+                // Create new staff profile
+                Log::info('Creating new staff profile for user: ' . $user->id);
+                $userService->createStaffProfile($user, $staffData);
+                Log::info('Staff profile created successfully for user: ' . $user->id);
+
+                // If not KeNHA staff, request supervisor approval
+                if (!$this->is_kenha_staff && $this->supervisor_email) {
+                    $staffService = app(StaffService::class);
+                    $staffService->requestSupervisorApproval($user->staff);
+                    Log::info('Supervisor approval requested for user: ' . $user->id);
+                }
+            }
+
+            // Fire profile completed event for initial setup
+            if ($this->is_initial_setup) {
+                \App\Events\ProfileCompleted::dispatch($user);
+                $this->is_initial_setup = false; // Mark as completed
+                session()->flash('success', 'Profile completed successfully! Please review the terms and conditions.');
+                Log::info('Profile completed event dispatched for user: ' . $user->id);
+                $this->redirect(route('terms.show'), navigate: true);
+                return;
+            }
+
+            $this->dispatch('profile-updated', username: $user->username);
+            Log::info('Profile update completed successfully for user: ' . $user->id);
+
+        } catch (\Exception $e) {
+            Log::error('Error updating profile for user: ' . $user->id, [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'validated_data' => $validated ?? null,
+            ]);
+            $this->addError('general', 'An error occurred while updating your profile. Please try again.');
+            throw $e; // Re-throw to let Livewire handle it
+        }
     }
 
     /**
@@ -180,7 +210,9 @@ new class extends Component {
             'first_name' => $this->is_initial_setup ? 'required|string|max:100' : 'nullable|string|max:100',
             'other_names' => $this->is_initial_setup ? 'required|string|max:100' : 'nullable|string|max:100',
             'gender' => $this->is_initial_setup ? ['required', Rule::in(array_keys(config('kenhavate.gender_options')))] : ['nullable', Rule::in(array_keys(config('kenhavate.gender_options')))],
-            'mobile_phone' => $this->is_initial_setup ? 'required|string|regex:/^\+254\d{9}$/|unique:users,mobile_phone' : 'nullable|string|regex:/^\+254\d{9}$/|unique:users,mobile_phone',
+            'mobile_phone' => $this->is_initial_setup
+                ? 'required|string|regex:/^\(\+254\)\s\d{3}-\d{6}$/|unique:users,mobile_phone'
+                : 'nullable|string|regex:/^\(\+254\)\s\d{3}-\d{6}$/|unique:users,mobile_phone',
             'department_id' => $this->is_initial_setup ? 'required|exists:departments,id' : 'nullable|exists:departments,id',
         ];
 
@@ -332,11 +364,13 @@ new class extends Component {
                         <div class="space-y-2">
                             <flux:input 
                                 wire:model="email"
-                                :label="__('Email Address')" 
+                                :label="__('Email Address')"
+                                {{-- readonly if user has a google_id or when user email is verified or when user email is_kenha_staff --}}
+                                :readonly="!empty(auth()->user()->google_id) || auth()->user()->hasVerifiedEmail() || auth()->user()->is_kenha_staff"
+                                :disabled="!empty(auth()->user()->google_id) || auth()->user()->hasVerifiedEmail() || auth()->user()->is_kenha_staff"
                                 type="email" 
                                 required 
                                 autocomplete="email"
-                                class="transition-all duration-200 focus:ring-2 focus:ring-[#FFF200] dark:focus:ring-yellow-400"
                             />
                             @if (auth()->user() instanceof \Illuminate\Contracts\Auth\MustVerifyEmail && !auth()->user()->hasVerifiedEmail())
                                 <div class="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg">
@@ -426,7 +460,8 @@ new class extends Component {
                             <flux:input
                                 wire:model="mobile_phone"
                                 :label="__('Mobile Phone')"
-                                type="tel"
+                                mask="(+999) 999-999999"
+                                {{-- type="tel" --}}
                                 :required="$is_initial_setup"
                                 placeholder="+254XXXXXXXXX"
                                 class="transition-all duration-200 focus:ring-2 focus:ring-[#FFF200] dark:focus:ring-yellow-400"
@@ -501,6 +536,43 @@ new class extends Component {
                 </div>
             @endif
 
+
+
+
+            {{-- card component with checkbox to mark if the user is a kenha staff and does not have @kenha.co.ke email --}}
+            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md">
+                {{-- Card Header --}}
+                <div class="bg-gradient-to-r from-zinc-50 to-white dark:from-zinc-800 dark:to-zinc-800/50 px-6 py-4 border-b border-zinc-200 dark:border-zinc-700">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-[#FFF200] dark:bg-yellow-400 rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5 text-[#231F20] dark:text-zinc-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-[#231F20] dark:text-white">
+                                {{ __('Staff Status') }}
+                            </h3>
+                            <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                                {{ __('Please indicate if you are a KeNHA staff member') }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Card Content --}}
+                <div class="p-6 space-y-4">
+                    <div class="grid grid-cols-1 lg:grid-cols-1 gap-4">
+                        <label class="inline-flex items-center">
+                            <flux:checkbox wire:model.live="is_other_type_staff"  />
+                            <span class="ml-2 text-sm text-zinc-700 dark:text-zinc-300">
+                                {{ __('I am a KeNHA staff member but I don\'t have a @kenha.co.ke email') }}
+                            </span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
             {{-- KeNHA Staff Information --}}
             @if($is_kenha_staff)
                 <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md">
@@ -562,7 +634,9 @@ new class extends Component {
                         </div>
                     </div>
                 </div>
-            @else
+            @endif
+
+            @if($is_other_type_staff && !$is_kenha_staff)
                 {{-- Non-KeNHA Staff: Employment Information --}}
                 <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md">
                     {{-- Card Header --}}
@@ -620,50 +694,54 @@ new class extends Component {
                 </div>
             @endif
 
-            {{-- Department Assignment --}}
-            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md">
-                {{-- Card Header --}}
-                <div class="bg-gradient-to-r from-zinc-50 to-white dark:from-zinc-800 dark:to-zinc-800/50 px-6 py-4 border-b border-zinc-200 dark:border-zinc-700">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-[#FFF200] dark:bg-yellow-400 rounded-lg flex items-center justify-center">
-                            <svg class="w-5 h-5 text-[#231F20] dark:text-zinc-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="text-lg font-semibold text-[#231F20] dark:text-white">
-                                {{ __('Department Assignment') }}
-                            </h3>
-                            <p class="text-xs text-zinc-500 dark:text-zinc-400">
-                                {{ __('Select your organizational unit') }}
-                            </p>
+
+
+            @if($is_other_type_staff && !$is_kenha_staff)
+                {{-- Department Assignment --}}
+                <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md">
+                    {{-- Card Header --}}
+                    <div class="bg-gradient-to-r from-zinc-50 to-white dark:from-zinc-800 dark:to-zinc-800/50 px-6 py-4 border-b border-zinc-200 dark:border-zinc-700">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-[#FFF200] dark:bg-yellow-400 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-[#231F20] dark:text-zinc-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-semibold text-[#231F20] dark:text-white">
+                                    {{ __('Department Assignment') }}
+                                </h3>
+                                <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                                    {{ __('Select your organizational unit') }}
+                                </p>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                {{-- Card Content --}}
-                <div class="p-6">
-                    <flux:select
-                        wire:model="department_id"
-                        :label="__('Department')"
-                        required
-                        placeholder="Select your department"
-                        class="transition-all duration-200 focus:ring-2 focus:ring-[#FFF200] dark:focus:ring-yellow-400"
-                    >
-                        @foreach($regions as $region)
-                            <optgroup label="{{ $region->name }}">
-                                @foreach($region->directorates as $directorate)
-                                    @foreach($directorate->departments as $department)
-                                        <option value="{{ $department->id }}">
-                                            {{ $region->name }} → {{ $directorate->name }} → {{ $department->name }}
-                                        </option>
+                    {{-- Card Content --}}
+                    <div class="p-6">
+                        <flux:select
+                            wire:model="department_id"
+                            :label="__('Department')"
+                            required
+                            placeholder="Select your department"
+                            class="transition-all duration-200 focus:ring-2 focus:ring-[#FFF200] dark:focus:ring-yellow-400"
+                        >
+                            @foreach($regions as $region)
+                                <optgroup label="{{ $region->name }}">
+                                    @foreach($region->directorates as $directorate)
+                                        @foreach($directorate->departments as $department)
+                                            <option value="{{ $department->id }}">
+                                                {{ $region->name }} → {{ $directorate->name }} → {{ $department->name }}
+                                            </option>
+                                        @endforeach
                                     @endforeach
-                                @endforeach
-                            </optgroup>
-                        @endforeach
-                    </flux:select>
+                                </optgroup>
+                            @endforeach
+                        </flux:select>
+                    </div>
                 </div>
-            </div>
+            @endif
 
             {{-- Action Buttons --}}
             <div class="flex flex-col sm:flex-row items-center gap-4 pt-6 border-t border-zinc-200 dark:border-zinc-700">
