@@ -79,7 +79,7 @@ new #[Layout('components.layouts.app')] class extends Component {
     <div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-6">
         <form wire:submit="acceptTerms" class="space-y-4">
             <flux:checkbox
-                wire:model="accepted"
+                wire:model.live="accepted"
                 :label="__('I have read and agree to the Terms and Conditions')"
                 required
             />

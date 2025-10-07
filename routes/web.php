@@ -39,7 +39,6 @@ Route::middleware(['auth'])->group(function () {
         return redirect()->route('profile.edit');
     })->name('profile.setup');
     Route::post('profile/setup', function () {
-        // This will be handled by the Livewire component
         return redirect()->route('terms.show');
     })->name('profile.complete');
 

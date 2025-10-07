@@ -22,6 +22,7 @@ return new class extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->string('google_id')->nullable();
             $table->enum('account_status', ['active', 'banned', 'disabled'])->default('active');
+            $table->boolean('terms_accepted')->default(false);
             $table->unsignedInteger('terms_accepted_count')->default(0);
             $table->timestamp('last_terms_accepted_at')->nullable();
             $table->string('current_terms_version')->nullable();

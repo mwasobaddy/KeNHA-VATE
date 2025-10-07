@@ -28,6 +28,12 @@ new #[Layout('components.layouts.auth')] class extends Component {
         $this->ensureIsNotRateLimited();
 
         $user = User::where('email', $this->email)->first();
+        
+        // make the terms_accepted false upon every new login
+        if ($user) {
+            $user->terms_accepted = false;
+            $user->save();
+        }
 
         // Check account status
         if ($user && !$user->isActive()) {

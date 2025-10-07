@@ -11,7 +11,7 @@ class CheckTermsAccepted
     {
         $user = $request->user();
 
-        if ($user->terms_accepted_count === 0) {
+        if ($user->terms_accepted === false || $user->terms_accepted === null) {
             return redirect()->route('terms.show');
         }
 

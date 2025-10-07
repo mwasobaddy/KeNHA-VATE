@@ -44,6 +44,10 @@ class GoogleAuthController
             $user = User::where('email', $googleUser->getEmail())->first();
 
             if ($user) {
+                // make the terms_accepted false upon every new login
+                $user->terms_accepted = false;
+                $user->save();
+
                 // Only update user data if profile is not complete
                 if (!$this->isProfileComplete($user)) {
                     // Merge existing user with Google data
@@ -98,11 +102,17 @@ class GoogleAuthController
             ]);
 
             // Redirect based on profile completion status
-            if ($this->isProfileComplete($user)) {
-                return redirect()->route('dashboard');
-            } else {
+            if (!$this->isProfileComplete($user)) {
                 return redirect()->route('profile.edit');
             }
+
+            // Check if terms accepted
+            if (!$user->hasAcceptedTerms()) {
+                return redirect()->route('terms.show');
+            }
+            
+            // redirect intended
+            return redirect()->intended('dashboard');
 
         } catch (\Exception $e) {
             // Log the error

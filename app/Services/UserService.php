@@ -109,6 +109,7 @@ class UserService
     public function acceptTerms(User $user, ?string $version = null): void
     {
         $user->update([
+            'terms_accepted' => true,
             'terms_accepted_count' => $user->terms_accepted_count + 1,
             'last_terms_accepted_at' => now(),
             'current_terms_version' => $version,

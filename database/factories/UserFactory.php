@@ -29,7 +29,7 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'account_status' => 'active',
-            'terms_accepted_count' => 1,
+            'terms_accepted' => false,
             'last_terms_accepted_at' => now(),
             'current_terms_version' => '1.0',
             'points' => 0,

@@ -1,11 +1,3 @@
-{{-- 
-    Modernized Settings Layout
-    - Enhanced navigation with icons and active states
-    - Responsive mobile-first design with sticky navigation
-    - Smooth transitions and hover effects
-    - Brand-consistent color scheme
---}}
-
 <div class="flex items-start max-md:flex-col gap-8 lg:gap-12">
     {{-- Side Navigation - Enhanced with icons and modern styling --}}
     <div class="w-full md:w-[260px] md:sticky md:top-24">

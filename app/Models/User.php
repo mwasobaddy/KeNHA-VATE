@@ -33,6 +33,7 @@ class User extends Authenticatable
         'email',
         'google_id',
         'account_status',
+        'terms_accepted',
         'terms_accepted_count',
         'last_terms_accepted_at',
         'current_terms_version',
@@ -161,7 +162,7 @@ class User extends Authenticatable
      */
     public function hasAcceptedTerms(): bool
     {
-        return $this->terms_accepted_count > 0;
+        return $this->terms_accepted === true;
     }
 
     /**
