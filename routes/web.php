@@ -8,9 +8,9 @@ Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
-Route::view('dashboard', 'dashboard')
-    ->middleware(['auth', 'verified', 'check.account.status', 'check.profile.completion', 'check.terms.accepted'])
-    ->name('dashboard');
+Route::middleware(['auth', 'verified', 'check.account.status', 'check.profile.completion', 'check.terms.accepted'])->group(function () {
+    Route::view('dashboard', 'dashboard')->name('dashboard');
+});
 
 // Account status routes
 Volt::route('account/banned', 'account.banned')->name('account.banned');
