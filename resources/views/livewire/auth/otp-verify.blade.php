@@ -14,9 +14,11 @@ use Livewire\Volt\Component;
 
 new #[Layout('components.layouts.auth')] class extends Component {
     public string $email = '';
-    public string $otp = '';
+    public array $otp = ['', '', '', '', '', ''];
     public bool $remember = false;
     public int $remainingAttempts = 5;
+    // Timestamp (unix) when resend becomes available
+    public int $resendAvailableAt = 0;
 
     /**
      * Mount the component with email from session/route.
@@ -27,6 +29,9 @@ new #[Layout('components.layouts.auth')] class extends Component {
         if (empty($this->email)) {
             $this->redirect(route('login'), navigate: true);
         }
+
+        // Load resend timer from session if present
+        $this->resendAvailableAt = session('otp_resend_expires', 0);
     }
 
     /**
@@ -34,12 +39,23 @@ new #[Layout('components.layouts.auth')] class extends Component {
      */
     public function verifyOtp(): void
     {
+        $otpString = implode('', $this->otp);
+        
         $this->validate([
-            'otp' => 'required|string|digits:6',
+            'otp.*' => 'required|numeric|digits:1',
+        ], [
+            'otp.*.required' => 'Please enter all 6 digits.',
+            'otp.*.numeric' => 'Only numbers are allowed.',
+            'otp.*.digits' => 'Each box must contain one digit.',
         ]);
 
+        if (strlen($otpString) !== 6) {
+            $this->addError('otp', 'Please enter all 6 digits.');
+            return;
+        }
+
         $authService = app(AuthenticationService::class);
-        $isValid = $authService->verifyOtp($this->email, $this->otp);
+        $isValid = $authService->verifyOtp($this->email, $otpString);
 
         if (!$isValid) {
             $this->remainingAttempts--;
@@ -47,10 +63,12 @@ new #[Layout('components.layouts.auth')] class extends Component {
             if ($this->remainingAttempts <= 0) {
                 RateLimiter::hit($this->throttleKey(), 900); // 15 minutes lockout
                 $this->addError('otp', 'Too many failed attempts. Please try again later.');
+                $this->otp = ['', '', '', '', '', ''];
                 return;
             }
 
             $this->addError('otp', "Invalid OTP. {$this->remainingAttempts} attempts remaining.");
+            $this->otp = ['', '', '', '', '', ''];
             return;
         }
 
@@ -98,13 +116,31 @@ new #[Layout('components.layouts.auth')] class extends Component {
      */
     public function resendOtp(): void
     {
+        // Prevent resend if cooldown still active
+        $now = now()->timestamp;
+        $expires = session('otp_resend_expires', 0);
+        if ($expires && $expires > $now) {
+            $seconds = $expires - $now;
+            $this->addError('otp', "Please wait {$seconds} seconds before resending.");
+            return;
+        }
+
         $this->ensureIsNotRateLimited();
 
         $authService = app(AuthenticationService::class);
         $success = $authService->sendOtp($this->email);
 
         if ($success) {
+            // set resend cooldown for 59 seconds and persist in session
+            $expiresAt = now()->addSeconds(59)->timestamp;
+            session(['otp_resend_expires' => $expiresAt]);
+            $this->resendAvailableAt = $expiresAt;
+
+            // notify browser to start client-side timer immediately
+            $this->dispatchBrowserEvent('otp-resend-start', ['expiresAt' => $expiresAt]);
+
             $this->dispatch('showSuccess', 'OTP Resent', 'A new OTP has been sent to your email address.');
+            $this->otp = ['', '', '', '', '', ''];
         } else {
             $this->addError('otp', 'Unable to resend OTP. Please try again.');
         }
@@ -145,7 +181,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
     }
 }; ?>
 
-<div class="flex flex-col gap-6">
+<div class="flex flex-col gap-8">
     <x-auth-header
         :title="__('Verify your email')"
         :description="__('Enter the 6-digit code sent to your email')"
@@ -155,51 +191,261 @@ new #[Layout('components.layouts.auth')] class extends Component {
     <x-auth-session-status class="text-center" :status="session('status')" />
 
     <!-- OTP Form -->
-    <form method="POST" wire:submit="verifyOtp" class="flex flex-col gap-6">
-        <div class="text-center">
-            <p class="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
-                {{ __('We sent a 6-digit code to') }} <strong>{{ $email }}</strong>
-            </p>
+    <form method="POST" wire:submit="verifyOtp" class="flex flex-col gap-8">
+        <div class="rounded-lg bg-[#F8EBD5] dark:bg-zinc-800/50 p-4 border border-[#FFF200] dark:border-yellow-400">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-[#FFF200] dark:text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-[#231F20] dark:text-white">{{ __('Please enter the verification code sent to ":email"', ['email' => $email]) }}</p>
+                </div>
+            </div>
         </div>
 
-        <!-- OTP Input -->
-        <flux:input
-            wire:model="otp"
-            :label="__('Enter 6-digit code')"
-            type="text"
-            required
-            autofocus
-            maxlength="6"
-            placeholder="000000"
-            class="text-center text-2xl tracking-widest"
-        />
-
-        <!-- Remember Me -->
-        <flux:checkbox wire:model="remember" :label="__('Remember me')" />
-
-        <div class="text-sm text-zinc-600 dark:text-zinc-400 text-center">
-            {{ __('Didn\'t receive the code?') }}
-            <button
-                type="button"
-                wire:click="resendOtp"
-                class="text-blue-600 hover:text-blue-500 font-medium"
-            >
-                {{ __('Resend OTP') }}
-            </button>
+        <div class="text-center space-y-2">
+            <!-- Paste hint -->
+            <div class="text-center mt-2">
+                <p class="text-xs text-[#9B9EA4] dark:text-zinc-400">
+                    💡 <span class="font-medium">Tip:</span> You can paste the entire OTP code at once into any field
+                </p>
+                <p class="text-xs text-[#9B9EA4] dark:text-zinc-400 mt-1">
+                    Use <kbd class="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">Ctrl+V</kbd> or <kbd class="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">Cmd+V</kbd> to paste
+                </p>
+            </div>
         </div>
 
-        <div class="flex items-center justify-end gap-3">
+        <!-- OTP Input Boxes -->
+        <div class="flex flex-col gap-4">
+            <div class="flex justify-center gap-3" x-data="otpInput()">
+                @for ($i = 0; $i < 6; $i++)
+                    <input
+                        type="text"
+                        inputmode="numeric"
+                        maxlength="1"
+                        wire:model="otp.{{ $i }}"
+                        x-ref="input{{ $i }}"
+                        @input="handleInput($event, {{ $i }})"
+                        @keydown="handleKeyDown($event, {{ $i }})"
+                        @paste="handlePaste($event, {{ $i }})"
+                        class="w-14 h-14 text-center text-lg font-bold rounded-full border-2 border-[#9B9EA4] dark:border-zinc-600 focus:border-[#FFF200] dark:focus:border-yellow-400 focus:ring-2 focus:ring-[#FFF200] dark:focus:ring-yellow-400 focus:ring-opacity-50 bg-white dark:bg-zinc-800/50 text-[#231F20] dark:text-white transition-all duration-200 hover:border-[#FFF200] dark:hover:border-yellow-400"
+                        {{ $i === 0 ? 'autofocus' : '' }}
+                    />
+                @endfor
+            </div>
+            
+            @error('otp')
+                <p class="text-sm text-red-600 dark:text-red-400 text-center font-medium">
+                    {{ $message }}
+                </p>
+            @enderror
+        </div>
+
+        <div class="space-y-4">
+            <flux:button variant="primary" type="submit" class="w-full justify-center rounded-lg bg-[#FFF200] dark:bg-yellow-400 px-4 py-3 text-sm font-semibold text-[#231F20] dark:text-zinc-900 shadow-lg hover:bg-[#FFF200]/90 dark:hover:bg-yellow-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFF200] dark:focus-visible:outline-yellow-400 transition-all duration-200 hover:shadow-xl">
+                {{ __('Verify & Continue') }}
+            </flux:button>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-col-reverse sm:flex-row items-center gap-3">
             <flux:button
                 variant="ghost"
                 type="button"
                 wire:click="backToLogin"
+                class="w-full sm:w-auto border-2 border-[#9B9EA4] dark:border-zinc-600 text-sm text-[#231F20] dark:text-white hover:text-[#231F20] dark:hover:text-white/80 transition-colors duration-200"
             >
-                {{ __('Back') }}
+                {{ __('← Back to Login') }}
             </flux:button>
 
-            <flux:button variant="primary" type="submit" class="flex-1">
-                {{ __('Verify & Login') }}
-            </flux:button>
+                <!-- Resend Link -->
+                <div class="text-center">
+                    <p class="text-sm text-zinc-600 dark:text-zinc-400">
+                        {{ __('Didn\'t receive the code?') }}
+                        <span x-data="{ expiresAt: {{ $resendAvailableAt }}, now: Math.floor(Date.now()/1000), remaining: 0 }
+                                    x-init="{
+                                        // compute initial remaining
+                                        now = Math.floor(Date.now()/1000);
+                                        if (expiresAt > now) {
+                                            remaining = expiresAt - now;
+                                            // tick every second
+                                            const tick = () => {
+                                                now = Math.floor(Date.now()/1000);
+                                                remaining = Math.max(0, expiresAt - now);
+                                                if (remaining > 0) {
+                                                    setTimeout(tick, 1000);
+                                                }
+                                            };
+                                            tick();
+                                        }
+                                        // listen for server events to start timer
+                                        window.addEventListener('otp-resend-start', (e) => {
+                                            expiresAt = e.detail.expiresAt;
+                                            now = Math.floor(Date.now()/1000);
+                                            remaining = Math.max(0, expiresAt - now);
+                                            if (remaining > 0) {
+                                                setTimeout(function tick2() {
+                                                    now = Math.floor(Date.now()/1000);
+                                                    remaining = Math.max(0, expiresAt - now);
+                                                    if (remaining > 0) setTimeout(tick2, 1000);
+                                                }, 1000);
+                                            }
+                                        });
+                                    }">
+                            <button
+                                x-show="remaining === 0"
+                                type="button"
+                                wire:click="resendOtp"
+                                class="mt-2 text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors duration-200 underline underline-offset-2"
+                            >
+                                {{ __('Resend OTP') }}
+                            </button>
+
+                            <span x-show="remaining > 0" x-text="`Resend available in ${remaining}s`" class="mt-2 text-sm font-semibold text-zinc-600 dark:text-zinc-400"></span>
+                        </span>
+                    </p>
+                </div>
+
         </div>
     </form>
+
+    <script>
+        function otpInput() {
+            return {
+                handleInput(event, index) {
+                    const input = event.target;
+                    const value = input.value;
+
+                    // Only allow single digit
+                    if (value.length > 1) {
+                        input.value = value.charAt(0);
+                        return;
+                    }
+
+                    // Only allow numbers
+                    if (value && !/^\d$/.test(value)) {
+                        input.value = '';
+                        return;
+                    }
+
+                    // Move to next input if value entered
+                    if (value && index < 5) {
+                        this.$refs['input' + (index + 1)].focus();
+                    }
+
+                    // Auto-submit when all fields are filled
+                    if (index === 5 && value) {
+                        this.checkAutoSubmit();
+                    }
+                },
+
+                handleKeyDown(event, index) {
+                    const input = event.target;
+
+                    // Handle backspace
+                    if (event.key === 'Backspace') {
+                        if (!input.value && index > 0) {
+                            // Move to previous input if current is empty
+                            this.$refs['input' + (index - 1)].focus();
+                        } else {
+                            // Clear current input
+                            input.value = '';
+                        }
+                        event.preventDefault();
+                    }
+
+                    // Handle delete key
+                    if (event.key === 'Delete') {
+                        input.value = '';
+                        event.preventDefault();
+                    }
+
+                    // Handle arrow keys
+                    if (event.key === 'ArrowLeft' && index > 0) {
+                        this.$refs['input' + (index - 1)].focus();
+                        event.preventDefault();
+                    }
+
+                    if (event.key === 'ArrowRight' && index < 5) {
+                        this.$refs['input' + (index + 1)].focus();
+                        event.preventDefault();
+                    }
+
+                    // Handle home/end keys
+                    if (event.key === 'Home') {
+                        this.$refs['input0'].focus();
+                        event.preventDefault();
+                    }
+
+                    if (event.key === 'End') {
+                        this.$refs['input5'].focus();
+                        event.preventDefault();
+                    }
+                },
+
+                handlePaste(event, index) {
+                    event.preventDefault();
+                    const pasteData = event.clipboardData.getData('text').trim();
+                    
+                    // Only handle numeric paste data
+                    if (!/^\d+$/.test(pasteData)) {
+                        return;
+                    }
+
+                    // Get the digits starting from current index
+                    const digits = pasteData.slice(0, 6 - index).split('');
+                    
+                    // Fill the inputs
+                    digits.forEach((digit, i) => {
+                        const targetIndex = index + i;
+                        if (targetIndex < 6) {
+                            const targetInput = this.$refs['input' + targetIndex];
+                            targetInput.value = digit;
+                            
+                            // Trigger Livewire update
+                            targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        }
+                    });
+
+                    // Focus the next empty input or the last input
+                    const nextIndex = Math.min(index + digits.length, 5);
+                    this.$refs['input' + nextIndex].focus();
+
+                    // Auto-submit if all filled
+                    if (nextIndex === 5 && this.$refs['input5'].value) {
+                        this.checkAutoSubmit();
+                    }
+                },
+
+                checkAutoSubmit() {
+                    // Check if all inputs are filled
+                    const allFilled = Array.from({ length: 6 }, (_, i) => {
+                        return this.$refs['input' + i].value !== '';
+                    }).every(Boolean);
+
+                    if (allFilled) {
+                        // Small delay to ensure Livewire has updated
+                        setTimeout(() => {
+                            this.$el.closest('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+                        }, 100);
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Remove spinner from number inputs */
+        input[type="text"]::-webkit-outer-spin-button,
+        input[type="text"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        input[type="text"] {
+            -moz-appearance: textfield;
+        }
+    </style>
 </div>
