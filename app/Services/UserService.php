@@ -96,6 +96,14 @@ class UserService
     }
 
     /**
+     * Create staff profile for user.
+     */
+    public function createStaffProfile(User $user, array $data): Staff
+    {
+        return $user->staff()->create($data);
+    }
+
+    /**
      * Accept terms and conditions.
      */
     public function acceptTerms(User $user, string $version = null): void
