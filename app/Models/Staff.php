@@ -79,7 +79,21 @@ class Staff extends Model
      */
     public function isProfileComplete(): bool
     {
-        return !empty($this->department_id);
+        $user = $this->user;
+        $hasKenhaEmail = str_ends_with($user->email, '@kenha.co.ke');
+
+        // For KeNHA staff with @kenha.co.ke email (permanent staff)
+        if ($hasKenhaEmail || !empty($this->staff_number)) {
+            // Must have department_id and job_title
+            return !empty($this->department_id) && !empty($this->job_title);
+        }
+
+        // For other staff (non-KeNHA email, need supervisor approval)
+        // Must have department_id, job_title, employment_type, and supervisor_id
+        return !empty($this->department_id) &&
+               !empty($this->job_title) &&
+               !empty($this->employment_type) &&
+               !empty($this->supervisor_id);
     }
 
     /**
