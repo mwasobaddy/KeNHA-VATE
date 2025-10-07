@@ -2,6 +2,7 @@
 
 use App\Services\UserService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Session;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
@@ -15,18 +16,40 @@ new #[Layout('components.layouts.app')] class extends Component {
     public function acceptTerms(): void
     {
         if (!$this->accepted) {
-            $this->addError('accepted', 'You must accept the terms and conditions to continue.');
+            Session::put('immediate_popup_notification', [
+                'type' => 'warning',
+                'title' => 'Terms Not Accepted',
+                'message' => 'You must accept the terms and conditions to continue.',
+                'duration' => 5000,
+            ]);
+            $this->redirect(route('terms.show'), navigate: true);
             return;
         }
 
-        $user = Auth::user();
-        $userService = app(UserService::class);
+        try {
+            $user = Auth::user();
+            $userService = app(UserService::class);
 
-        // Accept terms with current version
-        $userService->acceptTerms($user, '1.0');
+            // Accept terms with current version
+            $userService->acceptTerms($user, '1.0');
 
-        // Redirect to dashboard
-        $this->redirect(route('dashboard'), navigate: true);
+            // Show success toast and redirect to dashboard
+            Session::put('immediate_popup_notification', [
+                'type' => 'success',
+                'title' => 'Terms Accepted',
+                'message' => 'Welcome to KENHAVATE! You can now access all features.',
+                'duration' => 5000,
+            ]);
+            $this->redirect(route('dashboard'), navigate: true);
+        } catch (\Exception $e) {
+            Session::put('immediate_popup_notification', [
+                'type' => 'error',
+                'title' => 'Acceptance Failed',
+                'message' => 'There was an error accepting the terms. Please try again.',
+                'duration' => 5000,
+            ]);
+            $this->redirect(route('terms.show'), navigate: true);
+        }
     }
 
     /**

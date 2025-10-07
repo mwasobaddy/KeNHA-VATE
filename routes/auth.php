@@ -12,9 +12,6 @@ Route::middleware('guest')->group(function () {
     Volt::route('auth/otp-verify', 'auth.otp-verify')
         ->name('otp.verify');
 
-    // Volt::route('register', 'auth.register')
-    //     ->name('register');
-
     Volt::route('forgot-password', 'auth.forgot-password')
         ->name('password.request');
 

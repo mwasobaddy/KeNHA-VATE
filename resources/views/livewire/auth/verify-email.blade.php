@@ -15,7 +15,14 @@ new #[Layout('components.layouts.auth')] class extends Component {
     {
         Auth::user()->sendEmailVerificationNotification();
 
-        Session::flash('status', 'verification-link-sent');
+        Session::put('immediate_popup_notification', [
+            'type' => 'success',
+            'title' => 'Verification Email Sent',
+            'message' => 'A new verification link has been sent to the email address you provided during registration.',
+            'duration' => 5000,
+        ]);
+
+        $this->redirect(route('verification.notice'), navigate: true);
     }
 
     /**
@@ -42,24 +49,24 @@ new #[Layout('components.layouts.auth')] class extends Component {
 }; ?>
 
 <div class="mt-4 flex flex-col gap-6">
-    <!-- Notice box (yellow border) -->
-    <div class="w-full">
-        <div class="rounded-lg border border-yellow-400/60 bg-yellow-50/40 dark:bg-neutral-900/30 p-4 flex items-start gap-3">
-            <div class="flex-shrink-0">
-                <span class="inline-flex items-center justify-center h-9 w-9 rounded-full bg-[#FFF200] dark:bg-yellow-400 text-[#231F20] dark:text-zinc-900 shadow">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                    </svg>
-                </span>
-            </div>
-
-            <div class="flex-1">
-                <p class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Please verify your email address by clicking on the link we just emailed to you.') }}</p>
-                @if (session('status') == 'verification-link-sent')
-                    <p class="mt-2 text-sm font-medium text-green-700 dark:text-green-300">
-                        {{ __('A new verification link has been sent to the email address you provided during registration.') }}
+    <!-- Email Verification Instructions -->
+    <div class="w-full text-center">
+        <div class="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-6">
+            <div class="flex flex-col items-center gap-4">
+                <div class="flex-shrink-0">
+                    <flux:icon name="envelope" class="h-12 w-12 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div class="text-center">
+                    <h3 class="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                        {{ __('Check Your Email') }}
+                    </h3>
+                    <p class="text-sm text-blue-700 dark:text-blue-300 mb-4">
+                        {{ __('We\'ve sent a verification link to your email address. Click the link in the email to verify your account and continue.') }}
                     </p>
-                @endif
+                    <p class="text-xs text-blue-600 dark:text-blue-400">
+                        {{ __('Didn\'t receive the email? Check your spam folder or click the button below to resend.') }}
+                    </p>
+                </div>
             </div>
         </div>
     </div>

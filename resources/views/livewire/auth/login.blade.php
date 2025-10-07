@@ -38,11 +38,23 @@ new #[Layout('components.layouts.auth')] class extends Component {
         // Check account status
         if ($user && !$user->isActive()) {
             if ($user->isBanned()) {
+                Session::put('immediate_popup_notification', [
+                    'type' => 'error',
+                    'title' => 'Account Banned',
+                    'message' => 'Your account has been banned. Please contact support for assistance.',
+                    'duration' => 7000,
+                ]);
                 $this->redirect(route('account.banned'), navigate: true);
                 return;
             }
 
             if ($user->isDisabled()) {
+                Session::put('immediate_popup_notification', [
+                    'type' => 'warning',
+                    'title' => 'Account Disabled',
+                    'message' => 'Your account has been disabled. Please contact support to re-enable it.',
+                    'duration' => 7000,
+                ]);
                 $this->redirect(route('account.disabled'), navigate: true);
                 return;
             }
@@ -64,8 +76,13 @@ new #[Layout('components.layouts.auth')] class extends Component {
             ]);
             $this->redirect(route('otp.verify'), navigate: true);
         } else {
-            $this->dispatch('showError', 'Failed to Send OTP', 'Unable to send OTP. Please try again.');
-            $this->addError('email', 'Unable to send OTP. Please try again.');
+            Session::put('immediate_popup_notification', [
+                'type' => 'error',
+                'title' => 'Failed to Send OTP',
+                'message' => 'Unable to send OTP. Please try again.',
+                'duration' => 5000,
+            ]);
+            $this->redirect(route('login'), navigate: true);
         }
     }
 

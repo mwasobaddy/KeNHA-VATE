@@ -42,7 +42,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
 
     <x-auth-session-status class="text-center" :status="session('status')" />
 
-    <form wire:submit="confirmPassword" class="flex flex-col gap-6">
+    <form method="POST" wire:submit="confirmPassword" class="flex flex-col gap-6">
         <flux:input
             wire:model="password"
             name="password"
@@ -54,8 +54,10 @@ new #[Layout('components.layouts.auth')] class extends Component {
             viewable
         />
 
-        <flux:button variant="primary" type="submit" class="w-full" data-test="confirm-password-button">
-            Confirm
-        </flux:button>
+        <div class="space-y-4">
+            <flux:button variant="primary" type="submit" class="w-full justify-center rounded-lg bg-[#FFF200] dark:bg-yellow-400 px-4 py-3 text-sm font-semibold text-[#231F20] dark:text-zinc-900 shadow-lg hover:bg-[#FFF200]/90 dark:hover:bg-yellow-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFF200] dark:focus-visible:outline-yellow-400 transition-all duration-200 hover:shadow-xl" data-test="confirm-password-button">
+                Confirm
+            </flux:button>
+        </div>
     </form>
 </div>

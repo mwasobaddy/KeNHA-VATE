@@ -230,7 +230,9 @@ new class extends Component {
                 return;
             }
 
-            $this->dispatch('profile-updated', username: $user->username);
+            // Set success notification for profile update
+            $this->dispatch('showSuccess', 'Profile Updated', 'Your profile has been updated successfully.');
+
             Log::info('Profile update completed successfully for user: ' . $user->id);
 
         } catch (\Exception $e) {
@@ -238,7 +240,9 @@ new class extends Component {
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            $this->addError('general', $e->getMessage());
+            
+            // Use popup notification for business logic errors
+            $this->dispatch('showError', 'Profile Update Failed', $e->getMessage());
         }
     }
 
@@ -377,21 +381,6 @@ new class extends Component {
             </div>
         @endif
 
-        {{-- Display General Errors --}}
-        @if($errors->has('general'))
-            <div class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg">
-                <div class="flex items-start gap-3">
-                    <svg class="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-                    </svg>
-                    <div class="flex-1">
-                        <h4 class="text-sm font-semibold text-red-800 dark:text-red-200">{{ __('Error') }}</h4>
-                        <p class="text-sm text-red-700 dark:text-red-300 mt-1">{{ $errors->first('general') }}</p>
-                    </div>
-                </div>
-            </div>
-        @endif
-
         <form wire:submit="updateProfileInformation" class="space-y-6">
             
             {{-- Account Information Card --}}
@@ -418,7 +407,7 @@ new class extends Component {
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <div class="space-y-2">
                             <flux:input 
-                                wire:model="username"
+                                wire:model.live="username"
                                 :label="__('Username')" 
                                 type="text" 
                                 required 
@@ -832,13 +821,12 @@ new class extends Component {
             <div class="flex flex-col sm:flex-row items-center gap-4 pt-6 border-t border-zinc-200 dark:border-zinc-700">
                 <div class="flex-1 w-full sm:w-auto">
                     <flux:button 
+                        icon="check-badge"
                         variant="primary" 
                         type="submit" 
                         class="w-full sm:w-auto justify-center rounded-lg bg-[#FFF200] dark:bg-yellow-400 px-6 py-3 text-sm font-semibold text-[#231F20] dark:text-zinc-900 shadow-lg hover:bg-[#FFF200]/90 dark:hover:bg-yellow-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFF200] dark:focus-visible:outline-yellow-400 transition-all duration-200 hover:shadow-xl hover:scale-105" 
-                        data-test="update-profile-button">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                        </svg>
+                        data-test="update-profile-button"
+                    >
                         {{ $is_initial_setup ? __('Complete Profile & Continue') : __('Save Changes') }}
                     </flux:button>
                 </div>
@@ -1120,9 +1108,17 @@ new class extends Component {
             window.addEventListener('livewire:init', () => {
                 Livewire.on('validation-error', () => {
                     setTimeout(() => {
-                        const firstError = document.querySelector('.text-red-600, .text-red-400');
+                        // Look for Flux error messages or any error text
+                        const firstError = document.querySelector('.text-red-600, .text-red-400, [class*="error"], .invalid-feedback');
                         if (firstError) {
                             firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            return;
+                        }
+                        
+                        // Fallback: look for any element with error styling
+                        const errorElement = document.querySelector('[aria-invalid="true"], .border-red-500, .ring-red-500');
+                        if (errorElement) {
+                            errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         }
                     }, 100);
                 });
