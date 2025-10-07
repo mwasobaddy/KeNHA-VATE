@@ -120,15 +120,12 @@ new class extends Component {
             // Update or create staff profile
             $userService = app(UserService::class);
             $staffData = [
-                'first_name' => $validated['first_name'],
-                'other_names' => $validated['other_names'],
-                'gender' => $validated['gender'],
-                'mobile_phone' => $validated['mobile_phone'],
                 'staff_number' => $validated['staff_number'] ?? null,
                 'personal_email' => $validated['personal_email'] ?? null,
                 'job_title' => $validated['job_title'] ?? null,
-                'department_id' => $validated['department_id'],
+                'department_id' => $validated['department_id'] ?? null,
                 'employment_type' => $validated['employment_type'] ?? null,
+                'supervisor_id' => $validated['supervisor_email'] ?? null,
             ];
 
             // Set supervisor_id if supervisor_email is provided and matches a user
@@ -213,7 +210,7 @@ new class extends Component {
             'mobile_phone' => $this->is_initial_setup
                 ? 'required|string|regex:/^\(\+254\)\s\d{3}-\d{6}$/|unique:users,mobile_phone'
                 : 'nullable|string|regex:/^\(\+254\)\s\d{3}-\d{6}$/|unique:users,mobile_phone',
-            'department_id' => $this->is_initial_setup ? 'required|exists:departments,id' : 'nullable|exists:departments,id',
+            'department_id' => 'nullable|exists:departments,id',
         ];
 
         if ($this->is_initial_setup) {
@@ -226,9 +223,10 @@ new class extends Component {
                 'staff_number' => $this->is_initial_setup ? 'required|string|unique:staff,staff_number,' . ($user->staff?->id ?? 'NULL') : 'nullable|string|unique:staff,staff_number,' . ($user->staff?->id ?? 'NULL'),
                 'personal_email' => 'nullable|email|different:email',
                 'job_title' => $staffRequired . '|string|max:150',
+                'department_id' => $staffRequired . '|exists:departments,id',
                 'employment_type' => [$staffRequired, Rule::in(array_keys(config('kenhavate.employment_types')))],
             ]);
-        } elseif ($this->is_initial_setup) {
+        } elseif ($this->is_initial_setup && $this->is_other_type_staff) {
             $rules = array_merge($rules, [
                 'employment_type' => ['required', Rule::in(array_keys(config('kenhavate.employment_types')))],
                 'supervisor_email' => [
