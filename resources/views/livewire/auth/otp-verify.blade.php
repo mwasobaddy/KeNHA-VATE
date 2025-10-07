@@ -101,8 +101,8 @@ new #[Layout('components.layouts.auth')] class extends Component {
         UserLoggedIn::dispatch($user, $isFirstLogin);
 
         // Check if profile is complete
-        if (!$user->staff || !$user->staff->isProfileComplete()) {
-            $this->redirect(route('profile.setup'), navigate: true);
+        if (!$this->isProfileComplete($user)) {
+            $this->redirect(route('profile.edit'), navigate: true);
             return;
         }
 
@@ -180,6 +180,25 @@ new #[Layout('components.layouts.auth')] class extends Component {
     protected function throttleKey(): string
     {
         return 'otp:' . Str::lower($this->email) . '|' . request()->ip();
+    }
+
+    /**
+     * Check if user's profile is complete based on their category.
+     */
+    private function isProfileComplete(User $user): bool
+    {
+        // All users must have basic profile info
+        if (empty($user->first_name) || empty($user->other_names) || empty($user->gender) || empty($user->mobile_phone)) {
+            return false;
+        }
+
+        // If user doesn't have a staff record, they're a regular user and profile is complete
+        if (!$user->staff) {
+            return true;
+        }
+
+        // If user has staff record, check staff-specific completion requirements
+        return $user->staff->isProfileComplete();
     }
 }; ?>
 
