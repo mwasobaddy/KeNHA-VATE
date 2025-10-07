@@ -51,17 +51,17 @@
                     <!-- Logo and Brand -->
                     <div class="mb-8">
                         <a href="{{ route('home') }}" class="flex items-center gap-3 text-xl font-bold text-[#231F20] dark:text-white" wire:navigate>
-                            <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-[#FFF200] to-[#9B9EA4] dark:from-yellow-400 dark:to-zinc-500 kenha-accent-glow">
+                            <div class="flex h-18 w-18 items-center justify-center rounded-full border border-[#231F20] dark:border-[#FFF200] bg-white dark:bg-zinc-800 kenha-accent-glow">
                                 <x-app-logo-icon class="size-6 fill-current text-[#231F20] dark:text-zinc-900" />
                             </div>
                             <span>KeNHAVATE</span>
                         </a>
-                        <h2 class="mt-6 text-3xl font-bold tracking-tight text-[#231F20] dark:text-white">
-                            {{ $title ?? 'Welcome back' }}
+                        {{-- <h2 class="mt-6 text-3xl font-bold tracking-tight text-[#231F20] dark:text-white">
+                            {{ $title ?? '' }}
                         </h2>
                         <p class="mt-2 text-sm text-[#9B9EA4] dark:text-zinc-400">
-                            {{ $description ?? 'Sign in to your account to continue' }}
-                        </p>
+                            {{ $description ?? '' }}
+                        </p> --}}
                     </div>
 
                     <!-- Main Content -->
@@ -70,7 +70,7 @@
                     </div>
 
                     <!-- Footer Links -->
-                    <div class="mt-8 text-center">
+                    <div class="mt-8 text-center border-t border-[#9B9EA4] dark:border-zinc-600 pt-6">
                         <div class="flex items-center justify-center space-x-4 text-sm text-[#9B9EA4] dark:text-zinc-400">
                             <a href="#" class="hover:text-[#231F20] dark:hover:text-white transition-colors">Help</a>
                             <span>•</span>
@@ -168,8 +168,8 @@
                                         "KeNHAVATE has transformed how we approach innovation. The collaborative features and streamlined workflows have increased our project success rate by 40%."
                                     </p>
                                     <div class="mt-3">
-                                        <div class="text-[#231F20] dark:text-white font-medium text-sm">Dr. Sarah Kimani</div>
-                                        <div class="text-[#9B9EA4] dark:text-zinc-400 text-xs">Innovation Manager, KeNHA</div>
+                                        <div class="text-[#231F20] dark:text-white font-medium text-sm">Dr. Eng Victoria Okumu</div>
+                                        <div class="text-[#9B9EA4] dark:text-zinc-400 text-xs">Dep Director RI&KM</div>
                                     </div>
                                 </div>
                             </div>

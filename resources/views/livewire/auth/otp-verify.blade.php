@@ -32,6 +32,11 @@ new #[Layout('components.layouts.auth')] class extends Component {
 
         // Load resend timer from session if present
         $this->resendAvailableAt = session('otp_resend_expires', 0);
+        
+        // If cooldown has expired, reset to 0
+        if ($this->resendAvailableAt < time()) {
+            $this->resendAvailableAt = 0;
+        }
     }
 
     /**
@@ -135,9 +140,6 @@ new #[Layout('components.layouts.auth')] class extends Component {
             $expiresAt = now()->addSeconds(59)->timestamp;
             session(['otp_resend_expires' => $expiresAt]);
             $this->resendAvailableAt = $expiresAt;
-
-            // notify browser to start client-side timer immediately
-            $this->dispatchBrowserEvent('otp-resend-start', ['expiresAt' => $expiresAt]);
 
             $this->dispatch('showSuccess', 'OTP Resent', 'A new OTP has been sent to your email address.');
             $this->otp = ['', '', '', '', '', ''];
@@ -260,58 +262,88 @@ new #[Layout('components.layouts.auth')] class extends Component {
                 {{ __('← Back to Login') }}
             </flux:button>
 
-                <!-- Resend Link -->
-                <div class="text-center">
-                    <p class="text-sm text-zinc-600 dark:text-zinc-400">
-                        {{ __('Didn\'t receive the code?') }}
-                        <span x-data="{ expiresAt: {{ $resendAvailableAt }}, now: Math.floor(Date.now()/1000), remaining: 0 }
-                                    x-init="{
-                                        // compute initial remaining
-                                        now = Math.floor(Date.now()/1000);
-                                        if (expiresAt > now) {
-                                            remaining = expiresAt - now;
-                                            // tick every second
-                                            const tick = () => {
-                                                now = Math.floor(Date.now()/1000);
-                                                remaining = Math.max(0, expiresAt - now);
-                                                if (remaining > 0) {
-                                                    setTimeout(tick, 1000);
-                                                }
-                                            };
-                                            tick();
-                                        }
-                                        // listen for server events to start timer
-                                        window.addEventListener('otp-resend-start', (e) => {
-                                            expiresAt = e.detail.expiresAt;
-                                            now = Math.floor(Date.now()/1000);
-                                            remaining = Math.max(0, expiresAt - now);
-                                            if (remaining > 0) {
-                                                setTimeout(function tick2() {
-                                                    now = Math.floor(Date.now()/1000);
-                                                    remaining = Math.max(0, expiresAt - now);
-                                                    if (remaining > 0) setTimeout(tick2, 1000);
-                                                }, 1000);
-                                            }
-                                        });
-                                    }">
-                            <button
-                                x-show="remaining === 0"
-                                type="button"
-                                wire:click="resendOtp"
-                                class="mt-2 text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors duration-200 underline underline-offset-2"
-                            >
-                                {{ __('Resend OTP') }}
-                            </button>
+            <!-- Resend Link -->
+            <div class="text-center" 
+                 x-data="resendTimer({{ $resendAvailableAt }})"
+                 @resend-complete.window="resetTimer()"
+                 wire:ignore>
+                <p class="text-sm text-zinc-600 dark:text-zinc-400">
+                    {{ "Didn't receive the code?" }}
+                    
+                    <flux:button
+                        x-show="!isActive"
+                        type="button"
+                        :loading="true"
+                        variant="ghost"
+                        @click="$wire.resendOtp().then(() => { startTimer(59); })"
+                        class="mt-2 text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors duration-200 underline underline-offset-2"
+                    >
+                        {{ 'Resend OTP' }}
+                    </flux:button>
 
-                            <span x-show="remaining > 0" x-text="`Resend available in ${remaining}s`" class="mt-2 text-sm font-semibold text-zinc-600 dark:text-zinc-400"></span>
-                        </span>
-                    </p>
-                </div>
-
+                    <span 
+                        x-show="isActive" 
+                        x-text="`Resend available in ${remaining}s`" 
+                        class="mt-2 text-sm font-semibold text-zinc-600 dark:text-zinc-400">
+                    </span>
+                </p>
+            </div>
         </div>
     </form>
 
     <script>
+        function resendTimer(initialExpires) {
+            return {
+                remaining: 0,
+                isActive: false,
+                intervalId: null,
+
+                init() {
+                    // Calculate initial remaining time
+                    if (initialExpires > 0) {
+                        const now = Math.floor(Date.now() / 1000);
+                        this.remaining = Math.max(0, initialExpires - now);
+                        this.isActive = this.remaining > 0;
+                        
+                        if (this.isActive) {
+                            this.startCountdown();
+                        }
+                    }
+                },
+
+                startTimer(seconds) {
+                    this.remaining = seconds;
+                    this.isActive = true;
+                    this.startCountdown();
+                },
+
+                startCountdown() {
+                    // Clear any existing interval
+                    if (this.intervalId) {
+                        clearInterval(this.intervalId);
+                    }
+
+                    // Start countdown
+                    this.intervalId = setInterval(() => {
+                        this.remaining--;
+                        
+                        if (this.remaining <= 0) {
+                            this.resetTimer();
+                        }
+                    }, 1000);
+                },
+
+                resetTimer() {
+                    this.isActive = false;
+                    this.remaining = 0;
+                    if (this.intervalId) {
+                        clearInterval(this.intervalId);
+                        this.intervalId = null;
+                    }
+                }
+            }
+        }
+
         function otpInput() {
             return {
                 handleInput(event, index) {
