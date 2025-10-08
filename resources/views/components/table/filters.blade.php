@@ -13,7 +13,7 @@
 {{-- Filters Card Container with toggle --}}
 <div x-data="{ open: false }" class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md {{ $class }}">
     <div class="p-4 sm:p-6">
-        <div class="flex items-center justify-between gap-4">
+        <div class="flex items-center justify-between gap-4 flex-wrap">
             {{-- Left: Search --}}
             <div class="flex items-center gap-3 flex-1">
                 <flux:input
@@ -22,23 +22,24 @@
                     type="text"
                     :loading="false"
                     placeholder="{{ $searchPlaceholder }}"
-                    class="!w-64 text-sm bg-white dark:bg-zinc-800 text-[#231F20] dark:text-white focus:ring-2 focus:ring-[#FFF200] focus:border-[#FFF200] transition-all duration-200"
+                    class="min-w-64 text-sm bg-white dark:bg-zinc-800 text-[#231F20] dark:text-white focus:ring-2 focus:ring-[#FFF200] focus:border-[#FFF200] transition-all duration-200"
                 />
             </div>
 
             {{-- Right: Controls (Filter toggle, bulk actions, per-page) --}}
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 flex-1 justify-end">
                 {{-- Filter Toggle Button --}}
                 @if(!empty($filters))
-                <button
+                <flux:button
+                    icon="adjustments-horizontal"
                     type="button"
                     @click="open = !open"
-                    class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md bg-white dark:bg-zinc-900 border border-[#E6E8EB] dark:border-zinc-700 text-gray-700 dark:text-white hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors duration-150"
+                    variant="primary"
+                    color="gray"
                     aria-expanded="false"
                 >
-                    <flux:icon name="adjustments-horizontal" class="h-4 w-4 text-gray-600 dark:text-zinc-300" />
                     <span class="hidden sm:inline">Filters</span>
-                </button>
+                </flux:button>
                 @endif
 
                 {{-- Bulk Actions summary (keeps backward compatibility) --}}
@@ -53,15 +54,15 @@
 
                 {{-- Per Page Selector --}}
                 <div class="flex items-center gap-2 text-sm">
-                    <span class="text-[#9B9EA4] dark:text-zinc-400">Show</span>
-                    <select
+                    <span class="text-[#9B9EA4] dark:text-zinc-400 hidden sm:inline">Show</span>
+                    <flux:select
                         wire:model.live="perPage"
                         class="border border-[#9B9EA4]/20 dark:border-zinc-700 rounded-md px-3 py-2 text-sm bg-white dark:bg-zinc-800 text-[#231F20] dark:text-white focus:ring-2 focus:ring-[#FFF200] focus:border-[#FFF200] transition-all duration-200"
                     >
                         @foreach($perPageOptions as $option)
-                            <option value="{{ $option }}">{{ $option }}</option>
+                            <flux:select.option value="{{ $option }}">{{ $option }}</flux:select.option>
                         @endforeach
-                    </select>
+                    </flux:select>
                 </div>
             </div>
         </div>
