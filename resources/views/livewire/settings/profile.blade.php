@@ -3,6 +3,7 @@
 use App\Models\Department;
 use App\Models\Region;
 use App\Models\User;
+use App\Services\AuditService;
 use App\Services\StaffService;
 use App\Services\UserService;
 use Illuminate\Support\Facades\Auth;
@@ -151,6 +152,8 @@ new class extends Component {
             $rules = $this->getValidationRules($user);
             $validated = $this->validate($rules);
 
+            $auditService = app(AuditService::class);
+
             // Update user basic info
             $user->fill([
                 'username' => $validated['username'] ?? $user->username,
@@ -172,6 +175,12 @@ new class extends Component {
 
             $user->save();
             Log::info('User basic info saved successfully for user: ' . $user->id);
+
+            // Audit log: Profile updated
+            $auditService->logUserActivity($user, 'profile_updated', [
+                'is_initial_setup' => $this->is_initial_setup,
+                'fields_updated' => array_keys($user->getChanges()),
+            ]);
 
             // Handle staff profile only if user wants to be staff or has kenha email
             if ($this->wants_to_be_staff || $this->is_kenha_staff || $hasKenhaEmail) {
@@ -205,17 +214,34 @@ new class extends Component {
                     Log::info('Updating existing staff profile for user: ' . $user->id);
                     $userService->updateStaffProfile($user->staff, $staffData);
                     Log::info('Staff profile updated successfully for user: ' . $user->id);
+
+                    // Audit log: Staff profile updated
+                    $auditService->logUserActivity($user, 'staff_profile_updated', [
+                        'staff_id' => $user->staff->id,
+                        'fields_updated' => array_keys($staffData),
+                    ]);
                 } else {
                     // Create new staff profile
                     Log::info('Creating new staff profile for user: ' . $user->id);
                     $userService->createStaffProfile($user, $staffData);
                     Log::info('Staff profile created successfully for user: ' . $user->id);
 
+                    // Audit log: Staff profile created
+                    $auditService->logUserActivity($user, 'staff_profile_created', [
+                        'staff_data' => $staffData,
+                    ]);
+
                     // If not KeNHA staff, request supervisor approval
                     if ($this->is_other_type_staff && $this->supervisor_email) {
                         $staffService = app(StaffService::class);
                         $staffService->requestSupervisorApproval($user->staff);
                         Log::info('Supervisor approval requested for user: ' . $user->id);
+
+                        // Audit log: Supervisor approval requested
+                        $auditService->logUserActivity($user, 'supervisor_approval_requested', [
+                            'supervisor_email' => $this->supervisor_email,
+                            'staff_id' => $user->staff->id,
+                        ]);
                     }
                 }
             }
@@ -226,6 +252,14 @@ new class extends Component {
                 $this->is_initial_setup = false;
                 session()->flash('success', 'Profile completed successfully! Please review the terms and conditions.');
                 Log::info('Profile completed event dispatched for user: ' . $user->id);
+
+                // Audit log: Profile completed
+                $auditService->logUserActivity($user, 'profile_completed', [
+                    'is_kenha_staff' => $this->is_kenha_staff,
+                    'is_other_type_staff' => $this->is_other_type_staff,
+                    'has_staff_profile' => $user->staff ? true : false,
+                ]);
+
                 $this->redirect(route('terms.show'), navigate: true);
                 return;
             }
@@ -350,6 +384,12 @@ new class extends Component {
 
         $user->sendEmailVerificationNotification();
         Session::flash('status', 'verification-link-sent');
+
+        // Audit log: Email verification resent
+        $auditService = app(AuditService::class);
+        $auditService->logUserActivity($user, 'email_verification_resent', [
+            'email' => $user->email,
+        ]);
     }
 }; ?>
 
@@ -407,8 +447,8 @@ new class extends Component {
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <div class="space-y-2">
                             <flux:input 
-                                wire:model.live="username"
-                                :label="__('Username')" 
+                                wire:model="username"
+                                :label="__('Username')"
                                 type="text" 
                                 required 
                                 autofocus 
