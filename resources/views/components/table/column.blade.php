@@ -45,14 +45,14 @@
 
     if ($sortable && $currentSort === $sortField) {
         if ($currentDirection === 'asc') {
-            $sortIcon = 'chevron-up';
+            $sortIcon = 'arrow-up';
             $sortClasses .= ' text-[#2563EB] dark:text-[#60A5FA]';
         } else {
-            $sortIcon = 'chevron-down';
+            $sortIcon = 'arrow-down';
             $sortClasses .= ' text-[#2563EB] dark:text-[#60A5FA]';
         }
     } elseif ($sortable) {
-        $sortIcon = 'chevron-up-down';
+        $sortIcon = 'arrows-up-down';
         $sortClasses .= ' text-[#9CA3AF] dark:text-zinc-500 opacity-60';
     }
 @endphp

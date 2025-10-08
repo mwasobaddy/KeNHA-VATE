@@ -16,24 +16,14 @@
         <div class="flex items-center justify-between gap-4">
             {{-- Left: Search --}}
             <div class="flex items-center gap-3 flex-1">
-                <div class="relative w-full sm:w-80">
-                    <flux:input
-                        wire:model.live.debounce.300ms="search"
-                        type="text"
-                        placeholder="{{ $searchPlaceholder }}"
-                        class="w-full pl-10 border border-[#9B9EA4]/20 dark:border-zinc-700 rounded-md px-3 py-2 text-sm bg-white dark:bg-zinc-800 text-[#231F20] dark:text-white focus:ring-2 focus:ring-[#FFF200] focus:border-[#FFF200] transition-all duration-200"
-                    />
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <flux:icon name="magnifying-glass" class="h-5 w-5 text-[#9B9EA4] dark:text-zinc-400" />
-                    </div>
-                </div>
-
-                {{-- Optional compact filters indicator on small screens --}}
-                <div class="hidden sm:flex items-center text-sm text-[#9B9EA4] dark:text-zinc-400">
-                    @if(!empty($filters))
-                        <span class="ml-1">Filters available</span>
-                    @endif
-                </div>
+                <flux:input
+                    icon="magnifying-glass"
+                    wire:model.live.debounce.300ms="search"
+                    type="text"
+                    :loading="false"
+                    placeholder="{{ $searchPlaceholder }}"
+                    class="!w-64 text-sm bg-white dark:bg-zinc-800 text-[#231F20] dark:text-white focus:ring-2 focus:ring-[#FFF200] focus:border-[#FFF200] transition-all duration-200"
+                />
             </div>
 
             {{-- Right: Controls (Filter toggle, bulk actions, per-page) --}}
