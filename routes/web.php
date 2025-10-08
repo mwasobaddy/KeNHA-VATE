@@ -10,6 +10,9 @@ Route::get('/', function () {
 
 Route::middleware(['auth', 'verified', 'check.account.status', 'check.profile.completion', 'check.terms.accepted'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');
+
+    // Ideas
+    Volt::route('ideas/submit', 'ideas.submit')->name('ideas.submit');
 });
 
 // Account status routes
