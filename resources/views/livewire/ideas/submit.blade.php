@@ -35,6 +35,93 @@ new #[Layout('components.layouts.app')] class extends Component {
     // UI flags
     public bool $saving = false;
     public bool $submitted = false;
+    public bool $showDraftModal = false;
+    public $userDrafts = [];
+
+    // Draft selection
+    public ?int $selectedDraftId = null;
+
+    /**
+     * Mount the component and check for existing drafts
+     */
+    public function mount($draft = null): void
+    {
+        // Check if user has draft ideas
+        $this->userDrafts = Idea::where('user_id', Auth::id())
+                               ->where('status', 'draft')
+                               ->with('thematicArea')
+                               ->orderBy('updated_at', 'desc')
+                               ->get();
+
+        // Show modal if user has drafts and no specific draft is selected
+        if ($this->userDrafts->count() > 0 && !$draft && !request()->has('draft')) {
+            $this->showDraftModal = true;
+        }
+
+        // If a draft slug is provided via route parameter or query parameter, load it
+        $draftSlug = $draft ?: (request()->has('draft') ? request()->get('draft') : null);
+        if ($draftSlug) {
+            $this->loadDraft($draftSlug);
+        }
+    }
+
+    /**
+     * Load a specific draft into the form
+     */
+    public function loadDraft(string $draftSlug): void
+    {
+        $draft = Idea::where('user_id', Auth::id())
+                    ->where('slug', $draftSlug)
+                    ->where('status', 'draft')
+                    ->first();
+
+        if ($draft) {
+            $this->selectedDraftId = $draft->id;
+            $this->idea_title = $draft->idea_title;
+            $this->thematic_area_id = $draft->thematic_area_id;
+            $this->abstract = $draft->abstract;
+            $this->problem_statement = $draft->problem_statement;
+            $this->proposed_solution = $draft->proposed_solution;
+            $this->cost_benefit_analysis = $draft->cost_benefit_analysis;
+            $this->declaration_of_interests = $draft->declaration_of_interests;
+            $this->original_idea_disclaimer = $draft->original_idea_disclaimer;
+            $this->collaboration_enabled = $draft->collaboration_enabled;
+            $this->team_effort = $draft->team_effort;
+            $this->team_members = $draft->team_members ?? [];
+
+            Log::info('Draft loaded into form', [
+                'user_id' => Auth::id(),
+                'draft_slug' => $draftSlug,
+                'draft_id' => $draft->id,
+                'idea_title' => $draft->idea_title,
+            ]);
+        }
+    }
+
+    /**
+     * Select a draft and redirect to load it
+     */
+    public function selectDraft(int $draftId)
+    {
+        $draft = Idea::where('user_id', Auth::id())
+                    ->where('id', $draftId)
+                    ->where('status', 'draft')
+                    ->first();
+
+        if ($draft) {
+            $this->showDraftModal = false;
+            return redirect()->route('ideas.edit_draft.draft', ['draft' => $draft->slug]);
+        }
+    }
+
+    /**
+     * Start a new idea (close modal and reset form)
+     */
+    public function startNewIdea(): void
+    {
+        $this->showDraftModal = false;
+        $this->resetForm();
+    }
 
     /**
      * Save the idea as a draft.
@@ -50,6 +137,13 @@ new #[Layout('components.layouts.app')] class extends Component {
         $this->validate([
             'idea_title' => 'required|string|max:255',
             'thematic_area_id' => 'nullable|integer|exists:thematic_areas,id',
+            'abstract' => 'nullable|string|max:1000',
+            'problem_statement' => 'nullable|string|max:2000',
+            'proposed_solution' => 'nullable|string|max:2000',
+            'cost_benefit_analysis' => 'nullable|string|max:2000',
+            'declaration_of_interests' => 'nullable|string|max:1000',
+            'original_idea_disclaimer' => 'nullable|boolean|accepted',
+            'attachment' => 'nullable|file|max:5120', // Max 5MB
         ]);
 
         Log::info('Draft validation passed', ['user_id' => Auth::id()]);
@@ -57,25 +151,36 @@ new #[Layout('components.layouts.app')] class extends Component {
         $this->saving = true;
 
         try {
-            // Check if user already has a draft
-            $idea = Idea::where('user_id', Auth::id())
-                       ->where('status', 'draft')
-                       ->first();
+            // Check if user already has a matching draft (same title and thematic area)
+            $existingDraft = Idea::where('user_id', Auth::id())
+                               ->where('status', 'draft')
+                               ->where('idea_title', $this->idea_title)
+                               ->where('thematic_area_id', $this->thematic_area_id ?: null)
+                               ->first();
 
-            Log::info('Draft lookup result', [
+            Log::info('Draft matching lookup result', [
                 'user_id' => Auth::id(),
-                'existing_draft_found' => $idea ? true : false,
-                'existing_draft_id' => $idea?->id,
+                'title' => $this->idea_title,
+                'thematic_area_id' => $this->thematic_area_id,
+                'matching_draft_found' => $existingDraft ? true : false,
+                'matching_draft_id' => $existingDraft?->id,
             ]);
 
-            if (!$idea) {
-                $idea = new Idea();
-                $idea->user_id = Auth::id();
-                Log::info('Creating new draft idea', ['user_id' => Auth::id()]);
-            } else {
-                Log::info('Updating existing draft idea', [
+            if ($existingDraft) {
+                // Update the matching existing draft
+                $idea = $existingDraft;
+                Log::info('Updating matching existing draft', [
                     'user_id' => Auth::id(),
                     'idea_id' => $idea->id,
+                ]);
+            } else {
+                // Create a new draft since no matching draft exists
+                $idea = new Idea();
+                $idea->user_id = Auth::id();
+                Log::info('Creating new draft (no matching draft found)', [
+                    'user_id' => Auth::id(),
+                    'title' => $this->idea_title,
+                    'thematic_area_id' => $this->thematic_area_id,
                 ]);
             }
 
@@ -124,11 +229,13 @@ new #[Layout('components.layouts.app')] class extends Component {
 
             // Notify user
             if ($user = Auth::user()) {
+                $notificationUrl = route('ideas.edit_draft.draft', ['draft' => $idea->slug]);
+                    
                 app(NotificationService::class)->info(
                     $user,
                     'Draft saved',
                     'Your idea has been saved as a draft.',
-                    route('ideas.submit')
+                    $notificationUrl
                 );
             }
 
@@ -143,6 +250,10 @@ new #[Layout('components.layouts.app')] class extends Component {
             );
 
             session()->flash('success', 'Draft saved successfully!');
+
+            // Scroll to top and show popup for draft save
+            $this->dispatch('scroll-to-top');
+            $this->dispatch('showInfo', 'Draft Saved!', 'Your idea has been saved as a draft. You can continue editing it later.');
             
         } catch (\Exception $e) {
             Log::error('Failed to save draft', [
@@ -179,6 +290,7 @@ new #[Layout('components.layouts.app')] class extends Component {
             'cost_benefit_analysis' => 'required|string|max:2000',
             'declaration_of_interests' => 'required|string|max:1000',
             'original_idea_disclaimer' => 'required|boolean|accepted',
+            'attachment' => 'nullable|file|max:5120', // Max 5MB
         ]);
 
         Log::info('Idea submission validation passed', ['user_id' => Auth::id()]);
@@ -187,24 +299,30 @@ new #[Layout('components.layouts.app')] class extends Component {
 
         try {
             // Check if user has a draft to update, otherwise create new
-            $idea = Idea::where('user_id', Auth::id())
-                       ->where('status', 'draft')
-                       ->first();
-
-            Log::info('Submission draft lookup result', [
-                'user_id' => Auth::id(),
-                'existing_draft_found' => $idea ? true : false,
-                'existing_draft_id' => $idea?->id,
-            ]);
-
-            if (!$idea) {
-                $idea = new Idea();
-                $idea->user_id = Auth::id();
-                Log::info('Creating new idea for submission', ['user_id' => Auth::id()]);
-            } else {
-                Log::info('Converting draft to submitted idea', [
+            $idea = null;
+            
+            if ($this->selectedDraftId) {
+                // If editing a specific draft, use that one
+                $idea = Idea::where('user_id', Auth::id())
+                           ->where('id', $this->selectedDraftId)
+                           ->where('status', 'draft')
+                           ->first();
+                Log::info('Using selected draft for submission', [
                     'user_id' => Auth::id(),
-                    'idea_id' => $idea->id,
+                    'selected_draft_id' => $this->selectedDraftId,
+                    'draft_found' => $idea ? true : false,
+                ]);
+            }
+            
+            if (!$idea) {
+                // Fallback: look for any draft (for backward compatibility)
+                $idea = Idea::where('user_id', Auth::id())
+                           ->where('status', 'draft')
+                           ->first();
+                Log::info('Using fallback draft lookup for submission', [
+                    'user_id' => Auth::id(),
+                    'fallback_draft_found' => $idea ? true : false,
+                    'fallback_draft_id' => $idea?->id,
                 ]);
             }
 
@@ -276,6 +394,13 @@ new #[Layout('components.layouts.app')] class extends Component {
 
             session()->flash('success', 'Idea submitted successfully!');
 
+            // Reset form fields
+            $this->resetForm();
+
+            // Scroll to top and show popup
+            $this->dispatch('scroll-to-top');
+            $this->dispatch('showSuccess', 'Idea Submitted Successfully!', 'Thank you for your innovation. Your idea has been submitted for review and you will receive updates soon.');
+
         } catch (\Exception $e) {
             Log::error('Failed to submit idea', [
                 'user_id' => Auth::id(),
@@ -288,6 +413,75 @@ new #[Layout('components.layouts.app')] class extends Component {
 
         Log::info('Idea submission process completed', ['user_id' => Auth::id()]);
     }
+
+    /**
+     * Reset the form to initial state.
+     */
+    private function resetForm(): void
+    {
+        $this->idea_title = '';
+        $this->thematic_area_id = '';
+        $this->abstract = '';
+        $this->problem_statement = '';
+        $this->proposed_solution = '';
+        $this->cost_benefit_analysis = '';
+        $this->declaration_of_interests = '';
+        $this->original_idea_disclaimer = false;
+        $this->attachment = null;
+        $this->collaboration_enabled = false;
+        $this->team_effort = false;
+        $this->team_members = [];
+        $this->team_member_name = '';
+        $this->team_member_email = '';
+        $this->team_member_role = '';
+        $this->currentStep = 1;
+        $this->submitted = false;
+    }
+
+    /**
+     * Add a team member to the team members array.
+     */
+    public function addTeamMember(): void
+    {
+        $this->validate([
+            'team_member_name' => 'required|string|max:255',
+            'team_member_email' => 'required|email|max:255',
+            'team_member_role' => 'required|string|max:255',
+        ]);
+
+        $this->team_members[] = [
+            'name' => $this->team_member_name,
+            'email' => $this->team_member_email,
+            'role' => $this->team_member_role,
+        ];
+
+        // Reset the form fields
+        $this->team_member_name = '';
+        $this->team_member_email = '';
+        $this->team_member_role = '';
+
+        Log::info('Team member added', [
+            'user_id' => Auth::id(),
+            'team_members_count' => count($this->team_members),
+        ]);
+    }
+
+    /**
+     * Remove a team member from the team members array.
+     */
+    public function removeTeamMember(int $index): void
+    {
+        if (isset($this->team_members[$index])) {
+            unset($this->team_members[$index]);
+            $this->team_members = array_values($this->team_members); // Re-index the array
+
+            Log::info('Team member removed', [
+                'user_id' => Auth::id(),
+                'removed_index' => $index,
+                'team_members_count' => count($this->team_members),
+            ]);
+        }
+    }
 }; ?>
 
 <div class="backdrop-blur-lg min-h-screen bg-gradient-to-br from-[#F8EBD5]/20 via-white to-[#F8EBD5] dark:from-zinc-900/20 dark:via-zinc-800 dark:to-zinc-900 border border-zinc-200 dark:border-yellow-400 rounded-3xl py-12 px-4 sm:px-6 lg:px-8">
@@ -296,10 +490,11 @@ new #[Layout('components.layouts.app')] class extends Component {
         <!-- Header Section with Icon -->
         <div class="text-center space-y-4" x-data="{ show: false }" x-init="setTimeout(() => show = true, 100)">
             <div x-show="show" 
-                 x-transition:enter="transition ease-out duration-500"
-                 x-transition:enter-start="opacity-0 scale-90"
-                 x-transition:enter-end="opacity-100 scale-100"
-                 class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-[#FFF200] to-yellow-300 dark:from-yellow-400 dark:to-yellow-500 shadow-lg mx-auto mb-6">
+                x-transition:enter="transition ease-out duration-500"
+                x-transition:enter-start="opacity-0 scale-90"
+                x-transition:enter-end="opacity-100 scale-100"
+                class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-[#FFF200] to-yellow-300 dark:from-yellow-400 dark:to-yellow-500 shadow-lg mx-auto border-2 border-[#231F20] dark:border-zinc-700 mb-6"
+            >
                 <svg class="w-10 h-10 text-[#231F20] dark:text-zinc-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
                 </svg>
@@ -315,8 +510,95 @@ new #[Layout('components.layouts.app')] class extends Component {
                 <p class="mt-3 text-lg text-[#9B9EA4] dark:text-zinc-400 max-w-3xl mx-auto">
                     {{ __('Transform Kenya\'s road sector with your groundbreaking ideas. Every innovation starts with a single submission.') }}
                 </p>
+                @if($selectedDraftId)
+                <div class="mt-4 inline-flex items-center px-4 py-2 rounded-full bg-[#FFF200] dark:bg-yellow-400/10 border border-[#231F20] dark:border-zinc-700">
+                    <svg class="w-4 h-4 text-[#231F20] dark:text-yellow-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    </svg>
+                    <span class="text-sm font-medium text-[#231F20] dark:text-white">
+                        Editing: {{ Str::limit($idea_title, 30) }}
+                    </span>
+                </div>
+                @endif
             </div>
         </div>
+
+        <!-- Draft Selection Modal -->
+        <flux:modal wire:model.self="showDraftModal" class="md:w-[42rem]">
+            <div class="space-y-6">
+                <!-- Modal Header -->
+                <div class="flex items-start space-x-4">
+                    <div class="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-[#FFF200]/10 dark:bg-yellow-400/10">
+                        <svg class="h-6 w-6 text-[#FFF200] dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                    </div>
+                    <div class="flex-1">
+                        <flux:heading size="lg">Continue Working on Your Ideas</flux:heading>
+                        <flux:text class="mt-2">
+                            You have {{ $userDrafts->count() }} draft idea{{ $userDrafts->count() > 1 ? 's' : '' }} saved. Select one to continue editing or start fresh.
+                        </flux:text>
+                    </div>
+                </div>
+
+                <!-- Draft Ideas List -->
+                <div class="max-h-96 overflow-y-auto">
+                    <div class="space-y-3">
+                        @foreach($userDrafts as $draft)
+                        <div class="border border-[#9B9EA4]/20 dark:border-zinc-600 rounded-xl p-4 hover:border-[#FFF200] dark:hover:border-yellow-400 hover:bg-[#F8EBD5]/20 dark:hover:bg-zinc-700/20 transition-all duration-200 cursor-pointer"
+                             wire:click="selectDraft({{ $draft->id }})">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <h4 class="text-base font-semibold text-[#231F20] dark:text-white mb-2">
+                                        {{ Str::limit($draft->idea_title, 60) }}
+                                    </h4>
+                                    <div class="flex items-center space-x-4 text-sm text-[#9B9EA4] dark:text-zinc-400">
+                                        @if($draft->thematicArea)
+                                        <span class="flex items-center">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                                            </svg>
+                                            {{ $draft->thematicArea->name }}
+                                        </span>
+                                        @endif
+                                        <span class="flex items-center">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                            </svg>
+                                            Updated {{ $draft->updated_at->diffForHumans() }}
+                                        </span>
+                                    </div>
+                                    @if($draft->abstract)
+                                    <p class="text-sm text-[#9B9EA4] dark:text-zinc-400 mt-2 line-clamp-2">
+                                        {{ Str::limit($draft->abstract, 120) }}
+                                    </p>
+                                    @endif
+                                </div>
+                                <div class="ml-4">
+                                    <svg class="w-5 h-5 text-[#231F20] dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="flex gap-3 pt-4 border-t border-[#9B9EA4]/20 dark:border-zinc-600">
+                    <flux:spacer />
+                    <flux:modal.close>
+                        <flux:button variant="ghost" wire:click="startNewIdea">
+                            Start New Idea
+                        </flux:button>
+                    </flux:modal.close>
+                    <flux:modal.close>
+                        <flux:button>Cancel</flux:button>
+                    </flux:modal.close>
+                </div>
+            </div>
+        </flux:modal>
 
         <!-- Enhanced Progress Indicator -->
         <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6 mb-8">
@@ -326,7 +608,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                 <div class="flex items-center flex-1">
                     <div class="flex items-center">
                         <div :class="currentStep >= 1 ? 'bg-[#FFF200] dark:bg-yellow-400 text-[#231F20] dark:text-zinc-900' : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400'" 
-                             class="w-12 h-12 rounded-full flex items-center justify-center font-bold text-base shadow-lg transition-all duration-300">
+                             class="w-12 h-12 rounded-full flex items-center justify-center font-bold text-base shadow-lg transition-all duration-300 border border-[#231F20] dark:border-zinc-700">
                             <span x-show="currentStep > 1">
                                 <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
@@ -403,8 +685,8 @@ new #[Layout('components.layouts.app')] class extends Component {
                     <!-- Section Header -->
                     <div class="flex items-center justify-between pb-6 border-b border-[#9B9EA4]/20 dark:border-zinc-700">
                         <div class="flex items-center space-x-4">
-                            <div class="w-12 h-12 rounded-xl bg-[#FFF200]/10 dark:bg-yellow-400/10 flex items-center justify-center">
-                                <svg class="w-6 h-6 text-[#FFF200] dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div class="w-12 h-12 rounded-xl bg-[#FFF200] border border-[#231F20] dark:border-zinc-700 dark:bg-yellow-400/10 flex items-center justify-center">
+                                <svg class="w-6 h-6 text-[#231F20] dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                 </svg>
                             </div>
@@ -513,8 +795,8 @@ new #[Layout('components.layouts.app')] class extends Component {
                     <!-- Section Header -->
                     <div class="flex items-center justify-between pb-6 border-b border-[#9B9EA4]/20 dark:border-zinc-700">
                         <div class="flex items-center space-x-4">
-                            <div class="w-12 h-12 rounded-xl bg-[#FFF200]/10 dark:bg-yellow-400/10 flex items-center justify-center">
-                                <svg class="w-6 h-6 text-[#FFF200] dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div class="w-12 h-12 rounded-xl bg-[#FFF200] border border-[#231F20] dark:border-zinc-700 dark:bg-yellow-400/10 flex items-center justify-center"">
+                                <svg class="w-6 h-6 text-[#231F20] dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                 </svg>
                             </div>
@@ -673,8 +955,8 @@ new #[Layout('components.layouts.app')] class extends Component {
                     <!-- Section Header -->
                     <div class="flex items-center justify-between pb-6 border-b border-[#9B9EA4]/20 dark:border-zinc-700">
                         <div class="flex items-center space-x-4">
-                            <div class="w-12 h-12 rounded-xl bg-[#FFF200]/10 dark:bg-yellow-400/10 flex items-center justify-center">
-                                <svg class="w-6 h-6 text-[#FFF200] dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div class="w-12 h-12 rounded-xl bg-[#FFF200] border border-[#231F20] dark:border-zinc-700 dark:bg-yellow-400/10 flex items-center justify-center"">
+                                <svg class="w-6 h-6 text-[#231F20] dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
                                 </svg>
                             </div>
@@ -699,11 +981,8 @@ new #[Layout('components.layouts.app')] class extends Component {
                     <div x-data="fileUpload()" x-init="init()" class="space-y-3">
                         <div class="flex items-center justify-between">
                             <label class="text-base font-semibold text-[#231F20] dark:text-white">
-                                {{ __('Supporting Document') }}
+                                {{ __('Actual Idea Proposal Document') }}
                             </label>
-                            <span class="text-xs text-[#9B9EA4] dark:text-zinc-400 bg-[#F8EBD5] dark:bg-zinc-700/50 px-3 py-1 rounded-full">
-                                Optional
-                            </span>
                         </div>
 
                         <div
@@ -714,11 +993,11 @@ new #[Layout('components.layouts.app')] class extends Component {
                             class="relative rounded-xl border-2 transition-all duration-300 cursor-pointer overflow-hidden"
                             :class="isDragging ? 'border-[#FFF200] dark:border-yellow-400 bg-[#FFF200]/10 dark:bg-yellow-400/10 scale-[1.02]' : 'border-dashed border-[#9B9EA4]/30 dark:border-zinc-600 hover:border-[#FFF200] dark:hover:border-yellow-400 hover:bg-[#F8EBD5]/30 dark:hover:bg-zinc-700/30'"
                         >
-                            <input x-ref="input" type="file" accept=".pdf" class="hidden" @change="handleFile($event)" />
+                            <input x-ref="input" type="file" accept=".pdf" class="hidden" wire:model="attachment" @change="handleFile($event)" />
 
                             <div x-show="!hasFile" class="p-12 text-center space-y-4">
-                                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#F8EBD5] dark:bg-zinc-700/50 mx-auto">
-                                    <svg class="w-8 h-8 text-[#FFF200] dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full border border-[#231F20] dark:border-zinc-700 bg-[#FFF200] dark:bg-zinc-700/50 mx-auto">
+                                    <svg class="w-8 h-8 text-[#231F20] dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                                     </svg>
                                 </div>
@@ -870,13 +1149,13 @@ new #[Layout('components.layouts.app')] class extends Component {
                     <!-- Collaboration Settings -->
                     <div class="space-y-4">
                         <h3 class="text-lg font-semibold text-[#231F20] dark:text-white flex items-center space-x-2">
-                            <svg class="w-5 h-5 text-[#FFF200] dark:text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                            <svg class="w-5 h-5 text-[#231F20] dark:text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                                 <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
                             </svg>
                             <span>{{ __('Collaboration Options') }}</span>
                         </h3>
 
-                        <div class="bg-[#F8EBD5] dark:bg-zinc-900/50 rounded-xl p-6 space-y-4">
+                        <div class="bg-[#F8EBD5] dark:bg-zinc-900/50 border border-[#231F20] dark:border-zinc-700 rounded-xl p-6 space-y-4">
                             <div>
                                 <div class="flex items-center gap-2">
                                     <flux:checkbox
@@ -920,7 +1199,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                         
                         <div class="flex items-center justify-between">
                             <h3 class="text-lg font-semibold text-[#231F20] dark:text-white flex items-center space-x-2">
-                                <svg class="w-5 h-5 text-[#FFF200] dark:text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                                <svg class="w-5 h-5 text-[#231F20] dark:text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                                     <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
                                 </svg>
                                 <span>{{ __('Team Members') }}</span>
@@ -936,7 +1215,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                             @foreach($team_members as $index => $member)
                             <div class="flex items-center justify-between bg-white dark:bg-zinc-700/50 p-4 rounded-xl border border-[#9B9EA4]/20 dark:border-zinc-600 hover:shadow-md transition-all duration-200">
                                 <div class="flex items-center space-x-4">
-                                    <div class="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-[#FFF200] to-yellow-300 dark:from-yellow-400 dark:to-yellow-500 flex items-center justify-center text-[#231F20] dark:text-zinc-900 font-bold text-sm">
+                                    <div class="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-[#FFF200] to-yellow-300 dark:from-yellow-400 dark:to-yellow-500 flex items-center justify-center text-[#231F20] dark:text-zinc-900 font-bold text-sm border border-[#231F20] dark:border-zinc-700">
                                         {{ strtoupper(substr($member['name'], 0, 2)) }}
                                     </div>
                                     <div class="flex-1 min-w-0">
@@ -961,7 +1240,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                         <div class="bg-gradient-to-br from-[#F8EBD5]/50 via-white to-white dark:from-zinc-900/50 dark:via-zinc-800/50 dark:to-zinc-800 p-6 rounded-xl border-2 border-dashed border-[#9B9EA4]/30 dark:border-zinc-600 space-y-4">
                             <div class="flex items-center justify-between">
                                 <h4 class="text-base font-semibold text-[#231F20] dark:text-white flex items-center space-x-2">
-                                    <svg class="w-5 h-5 text-[#FFF200] dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="w-5 h-5 text-[#231F20] dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
                                     </svg>
                                     <span>{{ __('Add Team Member') }}</span>
@@ -995,14 +1274,12 @@ new #[Layout('components.layouts.app')] class extends Component {
                             </div>
 
                             <flux:button
+                                icon="plus-circle"
                                 variant="outline"
                                 type="button"
                                 wire:click="addTeamMember"
                                 class="w-full md:w-auto border-2 border-[#FFF200] dark:border-yellow-400 text-[#231F20] dark:text-white hover:bg-[#FFF200]/10 dark:hover:bg-yellow-400/10 transition-all duration-200"
                             >
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-                                </svg>
                                 {{ __('Add Team Member') }}
                             </flux:button>
                         </div>
@@ -1019,25 +1296,25 @@ new #[Layout('components.layouts.app')] class extends Component {
                 <div class="p-8">
                     <!-- Summary Stats -->
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                        <div class="text-center p-4 bg-[#F8EBD5] dark:bg-zinc-900/50 rounded-xl">
+                        <div class="text-center p-4 bg-[#F8EBD5] border border-[#231F20] dark:border-zinc-700 dark:bg-zinc-900/50 rounded-xl hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
                             <div class="text-2xl font-bold text-[#231F20] dark:text-white">
                                 {{ str_word_count($idea_title . ' ' . $abstract . ' ' . $problem_statement . ' ' . $proposed_solution) }}
                             </div>
                             <div class="text-xs text-[#9B9EA4] dark:text-zinc-400 mt-1">Total Words</div>
                         </div>
-                        <div class="text-center p-4 bg-[#F8EBD5] dark:bg-zinc-900/50 rounded-xl">
+                        <div class="text-center p-4 bg-[#F8EBD5] border border-[#231F20] dark:border-zinc-700 dark:bg-zinc-900/50 rounded-xl hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
                             <div class="text-2xl font-bold text-[#231F20] dark:text-white">
                                 {{ $team_effort ? count($team_members) + 1 : 1 }}
                             </div>
                             <div class="text-xs text-[#9B9EA4] dark:text-zinc-400 mt-1">Contributors</div>
                         </div>
-                        <div class="text-center p-4 bg-[#F8EBD5] dark:bg-zinc-900/50 rounded-xl">
+                        <div class="text-center p-4 bg-[#F8EBD5] border border-[#231F20] dark:border-zinc-700 dark:bg-zinc-900/50 rounded-xl hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
                             <div class="text-2xl font-bold text-[#231F20] dark:text-white">
                                 {{ $original_idea_disclaimer ? '✓' : '–' }}
                             </div>
                             <div class="text-xs text-[#9B9EA4] dark:text-zinc-400 mt-1">Disclaimer</div>
                         </div>
-                        <div class="text-center p-4 bg-[#F8EBD5] dark:bg-zinc-900/50 rounded-xl">
+                        <div class="text-center p-4 bg-[#F8EBD5] border border-[#231F20] dark:border-zinc-700 dark:bg-zinc-900/50 rounded-xl hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
                             <div class="text-2xl font-bold text-[#231F20] dark:text-white">
                                 {{ $collaboration_enabled ? 'Open' : 'Private' }}
                             </div>
@@ -1090,10 +1367,10 @@ new #[Layout('components.layouts.app')] class extends Component {
 
         <!-- Bottom Trust Indicators -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-            <div class="bg-white dark:bg-zinc-800 rounded-xl p-5 border border-[#9B9EA4]/20 dark:border-zinc-700 hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
+            <div class="bg-white dark:bg-zinc-800 rounded-xl p-5 border border-[#9B9EA4]/20 dark:border-zinc-700 hover:shadow-lg hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
                 <div class="flex items-center space-x-3">
-                    <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-[#FFF200]/10 dark:bg-yellow-400/10 flex items-center justify-center">
-                        <svg class="w-6 h-6 text-[#FFF200] dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="flex-shrink-0 w-12 h-12 border-1 border-[#231F20] dark:border-zinc-700 rounded-xl bg-[#FFF200] dark:bg-yellow-400/10 flex items-center justify-center">
+                        <svg class="w-6 h-6 text-[#231F20] dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
                         </svg>
                     </div>
@@ -1108,10 +1385,10 @@ new #[Layout('components.layouts.app')] class extends Component {
                 </div>
             </div>
 
-            <div class="bg-white dark:bg-zinc-800 rounded-xl p-5 border border-[#9B9EA4]/20 dark:border-zinc-700 hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
+            <div class="bg-white dark:bg-zinc-800 rounded-xl p-5 border border-[#9B9EA4]/20 dark:border-zinc-700 hover:shadow-lg hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
                 <div class="flex items-center space-x-3">
-                    <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-[#FFF200]/10 dark:bg-yellow-400/10 flex items-center justify-center">
-                        <svg class="w-6 h-6 text-[#FFF200] dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="flex-shrink-0 w-12 h-12 border-1 border-[#231F20] dark:border-zinc-700 rounded-xl bg-[#FFF200] dark:bg-yellow-400/10 flex items-center justify-center">
+                        <svg class="w-6 h-6 text-[#231F20] dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                         </svg>
                     </div>
@@ -1126,10 +1403,10 @@ new #[Layout('components.layouts.app')] class extends Component {
                 </div>
             </div>
 
-            <div class="bg-white dark:bg-zinc-800 rounded-xl p-5 border border-[#9B9EA4]/20 dark:border-zinc-700 hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
+            <div class="bg-white dark:bg-zinc-800 rounded-xl p-5 border border-[#9B9EA4]/20 dark:border-zinc-700 hover:shadow-lg hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
                 <div class="flex items-center space-x-3">
-                    <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-[#FFF200]/10 dark:bg-yellow-400/10 flex items-center justify-center">
-                        <svg class="w-6 h-6 text-[#FFF200] dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="flex-shrink-0 w-12 h-12 border-1 border-[#231F20] dark:border-zinc-700 rounded-xl bg-[#FFF200] dark:bg-yellow-400/10 flex items-center justify-center"">
+                        <svg class="w-6 h-6 text-[#231F20] dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
                     </div>
@@ -1146,10 +1423,10 @@ new #[Layout('components.layouts.app')] class extends Component {
         </div>
 
         <!-- Help Section -->
-        <div class="bg-gradient-to-br from-[#F8EBD5] to-white dark:from-zinc-800 dark:to-zinc-900 rounded-2xl p-8 border border-[#9B9EA4]/20 dark:border-zinc-700 mt-8">
+        <div class="bg-gradient-to-br from-[#F8EBD5] to-white dark:from-zinc-800 dark:to-zinc-900 rounded-2xl p-8 border border-[#231F20] dark:border-zinc-700 mt-8">
             <div class="text-center space-y-4">
                 <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-white dark:bg-zinc-700 shadow-lg">
-                    <svg class="w-7 h-7 text-[#FFF200] dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-7 h-7 text-[#231F20] dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                 </div>
@@ -1165,7 +1442,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                     <flux:button
                         variant="outline"
                         type="button"
-                        class="border-2 border-[#9B9EA4] dark:border-zinc-600 hover:border-[#FFF200] dark:hover:border-yellow-400 transition-all duration-200"
+                        class="border !border-[#231F20] dark:border-zinc-700 hover:border-[#FFF200] dark:hover:border-yellow-400 transition-all duration-200"
                     >
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -1175,7 +1452,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                     <flux:button
                         variant="outline"
                         type="button"
-                        class="border-2 border-[#9B9EA4] dark:border-zinc-600 hover:border-[#FFF200] dark:hover:border-yellow-400 transition-all duration-200"
+                        class="border !border-[#231F20] dark:border-zinc-700 hover:border-[#FFF200] dark:hover:border-yellow-400 transition-all duration-200"
                     >
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
@@ -1233,4 +1510,16 @@ new #[Layout('components.layouts.app')] class extends Component {
             }
         }
     </style>
+
+    <script>
+        // Handle scroll to top after successful submission
+        document.addEventListener('livewire:initialized', () => {
+            Livewire.on('scroll-to-top', () => {
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
 </div>
