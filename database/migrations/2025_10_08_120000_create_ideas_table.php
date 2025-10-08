@@ -14,7 +14,7 @@ return new class extends Migration {
             $table->id();
             $table->string('idea_title', 255);
             $table->string('slug')->unique();
-            $table->unsignedBigInteger('thematic_area_id')->nullable();
+            $table->foreignId('thematic_area_id')->nullable()->constrained()->nullOnDelete();
             $table->text('abstract')->nullable();
             $table->text('problem_statement')->nullable();
             $table->text('proposed_solution')->nullable();
