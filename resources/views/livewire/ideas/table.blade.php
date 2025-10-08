@@ -581,15 +581,11 @@ new #[Layout('components.layouts.app')] class extends Component {
                                     <flux:menu>
                                         <flux:menu.item
                                             icon="chat-bubble-left-right"
+                                            href="{{ route('ideas.comments', $idea->id) }}"
                                         >
-                                            {{ __('Reviewer\'s Comment') }}
+                                            {{ __('View Comments') }}
                                         </flux:menu.item>
                                         <flux:menu.separator />
-                                        <flux:menu.item
-                                            icon="chat-bubble-left-right"
-                                        >
-                                            {{ __('Public\'s Comment') }}
-                                        </flux:menu.item>
                                     </flux:menu>
                                 </flux:dropdown>
 

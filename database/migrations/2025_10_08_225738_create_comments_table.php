@@ -13,11 +13,13 @@ return new class extends Migration
     {
         Schema::create('comments', function (Blueprint $table) {
             $table->id();
+            $table->string('slug')->unique();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('idea_id')->constrained()->cascadeOnDelete();
             $table->foreignId('parent_id')->nullable()->constrained('comments')->nullOnDelete();
             $table->text('content');
-            $table->timestamp('read_at')->nullable();
+            $table->boolean('comment_is_disabled')->default(false);
+            $table->unsignedInteger('replies_count')->default(0);
             $table->timestamps();
             $table->softDeletes();
         });

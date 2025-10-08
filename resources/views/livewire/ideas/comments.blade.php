@@ -475,7 +475,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                         class="text-[#9B9EA4] hover:text-[#231F20] dark:text-zinc-400 dark:hover:text-white"
                     >
                         <flux:icon name="arrow-path" class="w-4 h-4 mr-2" />
-                        Refresh
+                        {{ __('Refresh') }}
                     </flux:button>
                 </div>
             </div>
