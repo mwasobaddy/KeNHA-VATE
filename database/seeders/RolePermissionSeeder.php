@@ -32,17 +32,12 @@ class RolePermissionSeeder extends Seeder
         }
 
         // Create roles
-        $userRole = Role::firstOrCreate(['name' => 'user']);
-        $adminRole = Role::firstOrCreate(['name' => 'admin']);
+        $developerRole = Role::firstOrCreate(['name' => 'developer']);
         $supervisorRole = Role::firstOrCreate(['name' => 'supervisor']);
+        $userRole = Role::firstOrCreate(['name' => 'user']);
 
         // Assign permissions to roles
-        $userRole->syncPermissions([
-            'view dashboard',
-            'view profile',
-            'edit profile',
-            'view notifications',
-        ]);
+        $developerRole->syncPermissions(Permission::all());
 
         $supervisorRole->syncPermissions([
             'view dashboard',
@@ -53,6 +48,11 @@ class RolePermissionSeeder extends Seeder
             'approve staff',
         ]);
 
-        $adminRole->syncPermissions(Permission::all());
+        $userRole->syncPermissions([
+            'view dashboard',
+            'view profile',
+            'edit profile',
+            'view notifications',
+        ]);
     }
 }
