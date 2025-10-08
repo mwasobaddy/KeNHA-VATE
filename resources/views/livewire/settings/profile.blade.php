@@ -138,15 +138,6 @@ new class extends Component {
     {
         $user = Auth::user();
         $hasKenhaEmail = str_ends_with($user->email, '@kenha.co.ke');
-        
-        Log::info('Starting profile update for user: ' . $user->id, [
-            'email' => $user->email,
-            'is_initial_setup' => $this->is_initial_setup,
-            'is_kenha_staff' => $this->is_kenha_staff,
-            'is_other_type_staff' => $this->is_other_type_staff,
-            'wants_to_be_staff' => $this->wants_to_be_staff,
-            'has_kenha_email' => $hasKenhaEmail,
-        ]);
 
         try {
             $rules = $this->getValidationRules($user);
@@ -174,13 +165,19 @@ new class extends Component {
             }
 
             $user->save();
-            Log::info('User basic info saved successfully for user: ' . $user->id);
 
             // Audit log: Profile updated
-            $auditService->logUserActivity($user, 'profile_updated', [
-                'is_initial_setup' => $this->is_initial_setup,
-                'fields_updated' => array_keys($user->getChanges()),
-            ]);
+            $auditService->logUserActivity(
+                $user,
+                'profile_updated', 
+                [
+                    'is_initial_setup' => $this->is_initial_setup,
+                    'fields_updated' => array_keys($user->getChanges()),
+                ],
+                null, // request
+                App\Models\User::class, // resource_type user model
+                $user->id // resource_id
+            );
 
             // Handle staff profile only if user wants to be staff or has kenha email
             if ($this->wants_to_be_staff || $this->is_kenha_staff || $hasKenhaEmail) {
@@ -216,10 +213,17 @@ new class extends Component {
                     Log::info('Staff profile updated successfully for user: ' . $user->id);
 
                     // Audit log: Staff profile updated
-                    $auditService->logUserActivity($user, 'staff_profile_updated', [
-                        'staff_id' => $user->staff->id,
-                        'fields_updated' => array_keys($staffData),
-                    ]);
+                    $auditService->logUserActivity(
+                        $user,
+                        'staff_profile_updated',
+                        [
+                            'staff_id' => $user->staff->id,
+                            'fields_updated' => array_keys($staffData),
+                        ],
+                        null, // request
+                        [App\Models\Staff::class, App\Models\User::class], // resource_type user model
+                        $user->id // resource_id
+                    );
                 } else {
                     // Create new staff profile
                     Log::info('Creating new staff profile for user: ' . $user->id);
@@ -227,9 +231,16 @@ new class extends Component {
                     Log::info('Staff profile created successfully for user: ' . $user->id);
 
                     // Audit log: Staff profile created
-                    $auditService->logUserActivity($user, 'staff_profile_created', [
-                        'staff_data' => $staffData,
-                    ]);
+                    $auditService->logUserActivity(
+                        $user,
+                        'staff_profile_created', 
+                        [
+                            'staff_data' => $staffData,
+                        ],
+                        null, // request
+                        [App\Models\Staff::class, App\Models\User::class], // resource_type user model
+                        $user->id // resource_id
+                    );
 
                     // If not KeNHA staff, request supervisor approval
                     if ($this->is_other_type_staff && $this->supervisor_email) {
@@ -238,10 +249,17 @@ new class extends Component {
                         Log::info('Supervisor approval requested for user: ' . $user->id);
 
                         // Audit log: Supervisor approval requested
-                        $auditService->logUserActivity($user, 'supervisor_approval_requested', [
-                            'supervisor_email' => $this->supervisor_email,
-                            'staff_id' => $user->staff->id,
-                        ]);
+                        $auditService->logUserActivity(
+                            $user,
+                            'supervisor_approval_requested',
+                            [
+                                'supervisor_email' => $this->supervisor_email,
+                                'staff_id' => $user->staff->id,
+                            ],
+                            null, // request
+                            [App\Models\Staff::class, App\Models\User::class], // resource_type user model
+                            $user->id // resource_id
+                        );
                     }
                 }
             }
@@ -251,14 +269,20 @@ new class extends Component {
                 \App\Events\ProfileCompleted::dispatch($user);
                 $this->is_initial_setup = false;
                 session()->flash('success', 'Profile completed successfully! Please review the terms and conditions.');
-                Log::info('Profile completed event dispatched for user: ' . $user->id);
 
                 // Audit log: Profile completed
-                $auditService->logUserActivity($user, 'profile_completed', [
-                    'is_kenha_staff' => $this->is_kenha_staff,
-                    'is_other_type_staff' => $this->is_other_type_staff,
-                    'has_staff_profile' => $user->staff ? true : false,
-                ]);
+                $auditService->logUserActivity(
+                    $user,
+                    'profile_completed',
+                    [
+                        'is_kenha_staff' => $this->is_kenha_staff,
+                        'is_other_type_staff' => $this->is_other_type_staff,
+                        'has_staff_profile' => $user->staff ? true : false,
+                    ],
+                    null, // request
+                    [App\Models\Staff::class, App\Models\User::class], // resource_type user model
+                    $user->id // resource_id
+                );
 
                 $this->redirect(route('terms.show'), navigate: true);
                 return;
@@ -387,9 +411,16 @@ new class extends Component {
 
         // Audit log: Email verification resent
         $auditService = app(AuditService::class);
-        $auditService->logUserActivity($user, 'email_verification_resent', [
-            'email' => $user->email,
-        ]);
+        $auditService->logUserActivity(
+            $user,
+            'email_verification_resent',
+            [
+                'email' => $user->email,
+            ],
+            null, // request
+            [App\Models\User::class], // resource_type user model
+            $user->id // resource_id
+        );
     }
 }; ?>
 

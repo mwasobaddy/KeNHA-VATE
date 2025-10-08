@@ -107,7 +107,7 @@ class GoogleAuthController
                     'google_id' => $googleUser->getId(),
                 ],
                 null, // request
-                'users', // resource_type
+                App\Models\User::class, // resource_type user model
                 $user->id // resource_id
             );
 
