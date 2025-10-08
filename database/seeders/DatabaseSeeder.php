@@ -15,7 +15,8 @@ class DatabaseSeeder extends Seeder
     {
         // Call the RolePermissionSeeder to set up roles and permissions first
         $this->call([
-            RolePermissionSeeder::class
+            RolePermissionSeeder::class,
+            ThematicAreaSeeder::class
         ]);
 
         // User::factory(10)->create();
