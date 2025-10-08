@@ -174,4 +174,12 @@ class User extends Authenticatable
     {
         return str_ends_with($this->email, '@kenha.co.ke');
     }
+
+    /**
+     * Get the comments for the user.
+     */
+    public function comments(): HasMany
+    {
+        return $this->hasMany(Comment::class);
+    }
 }
