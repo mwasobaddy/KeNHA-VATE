@@ -10,10 +10,10 @@
 @endphp
 
 @if($count > 0 && !empty($actions))
-<div class="flex items-center gap-2 p-4 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 {{ $class }}">
+<div class="flex items-center gap-2 p-4 bg-white dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700 {{ $class }}">
     {{-- Selection Info --}}
-    <div class="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
-        <flux:icon name="check-circle" class="h-5 w-5" />
+    <div class="flex items-center gap-2 text-sm text-[#231F20] dark:text-white">
+        <flux:icon name="check-circle" class="h-5 w-5 text-[#10B981]" />
         <span class="font-medium">{{ $count }} item{{ $count > 1 ? 's' : '' }} selected</span>
     </div>
 
@@ -33,19 +33,19 @@
 
                 switch($variant) {
                     case 'primary':
-                        $buttonClasses .= ' text-white bg-blue-600 hover:bg-blue-700 focus:ring-blue-500';
+                        $buttonClasses .= ' text-white bg-[#2563EB] hover:bg-[#1D4ED8] focus:ring-[#2563EB]';
                         break;
                     case 'danger':
-                        $buttonClasses .= ' text-white bg-red-600 hover:bg-red-700 focus:ring-red-500';
+                        $buttonClasses .= ' text-white bg-[#DC2626] hover:bg-[#B91C1C] focus:ring-[#DC2626]';
                         break;
                     case 'warning':
-                        $buttonClasses .= ' text-white bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500';
+                        $buttonClasses .= ' text-white bg-[#F59E0B] hover:bg-[#D97706] focus:ring-[#F59E0B]';
                         break;
                     case 'success':
-                        $buttonClasses .= ' text-white bg-green-600 hover:bg-green-700 focus:ring-green-500';
+                        $buttonClasses .= ' text-white bg-[#10B981] hover:bg-[#059669] focus:ring-[#10B981]';
                         break;
                     default:
-                        $buttonClasses .= ' text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-gray-500';
+                        $buttonClasses .= ' text-[#231F20] dark:text-white bg-white dark:bg-zinc-800 border border-[#E6E8EB] dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-900 focus:ring-[#FFF200]';
                 }
 
                 if ($disabled) {
@@ -94,7 +94,7 @@
     <div class="ml-auto">
         <button
             wire:click="clearSelection"
-            class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors duration-150"
+            class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-[#9B9EA4] dark:text-zinc-400 hover:text-[#231F20] dark:hover:text-white transition-colors duration-150"
         >
             <flux:icon name="x-mark" class="h-4 w-4 mr-1.5" />
             Clear selection

@@ -13,15 +13,15 @@
     $trClasses = '';
 
     if ($hover) {
-        $trClasses .= ' hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors duration-150';
+        $trClasses .= ' hover:bg-gray-50 dark:hover:bg-zinc-900/40 transition-colors duration-150';
     }
 
     if ($striped) {
-        $trClasses .= ' even:bg-gray-50 dark:even:bg-gray-800/30';
+        $trClasses .= ' even:bg-gray-50 dark:even:bg-zinc-900/30';
     }
 
     if ($selected) {
-        $trClasses .= ' bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500';
+        $trClasses .= ' bg-[#EFF6FF] dark:bg-zinc-900 border-l-4 border-[#2563EB]';
     }
 
     if ($clickable || $url || $wireClick) {

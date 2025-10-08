@@ -12,7 +12,8 @@
 ])
 
 @php
-    $thClasses = 'px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider';
+    // Base header classes (zinc palette for dark mode)
+    $thClasses = 'px-6 py-3 text-left text-xs font-medium text-[#6B7280] dark:text-zinc-400 uppercase tracking-wider';
 
     // Alignment classes
     if ($align === 'center') {
@@ -23,12 +24,12 @@
 
     // Sticky positioning
     if ($sticky) {
-        $thClasses .= ' sticky top-0 z-10 bg-gray-50 dark:bg-gray-800';
+        $thClasses .= ' sticky top-0 z-10 bg-white dark:bg-zinc-800';
     }
 
     // Sortable styling
     if ($sortable) {
-        $thClasses .= ' cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150';
+        $thClasses .= ' cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors duration-150';
     }
 
     // Width styling
@@ -45,14 +46,14 @@
     if ($sortable && $currentSort === $sortField) {
         if ($currentDirection === 'asc') {
             $sortIcon = 'chevron-up';
-            $sortClasses .= ' text-blue-600 dark:text-blue-400';
+            $sortClasses .= ' text-[#2563EB] dark:text-[#60A5FA]';
         } else {
             $sortIcon = 'chevron-down';
-            $sortClasses .= ' text-blue-600 dark:text-blue-400';
+            $sortClasses .= ' text-[#2563EB] dark:text-[#60A5FA]';
         }
     } elseif ($sortable) {
         $sortIcon = 'chevron-up-down';
-        $sortClasses .= ' text-gray-400 dark:text-gray-500 opacity-50';
+        $sortClasses .= ' text-[#9CA3AF] dark:text-zinc-500 opacity-60';
     }
 @endphp
 
