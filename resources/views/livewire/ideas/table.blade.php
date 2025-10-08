@@ -174,6 +174,48 @@ new #[Layout('components.layouts.app')] class extends Component {
     }
 
     /**
+     * Restore a soft-deleted idea (if soft deletes are enabled)
+     */
+    public function restoreIdea(int $ideaId): void
+    {
+        $idea = Idea::withTrashed()->where('user_id', Auth::id())->findOrFail($ideaId);
+
+        if ($idea->trashed()) {
+            $idea->restore();
+            session()->flash('success', 'Idea restored successfully.');
+        } else {
+            session()->flash('info', 'Idea is not deleted.');
+        }
+    }
+
+    /**
+     * Restore selected soft-deleted ideas
+     */
+    public function restoreSelected(): void
+    {
+        $ideas = Idea::withTrashed()
+            ->where('user_id', Auth::id())
+            ->whereIn('id', $this->selectedIdeas)
+            ->get();
+
+        $restored = 0;
+        foreach ($ideas as $idea) {
+            if ($idea->trashed()) {
+                $idea->restore();
+                $restored++;
+            }
+        }
+
+        if ($restored > 0) {
+            session()->flash('success', "$restored idea(s) restored successfully.");
+        } else {
+            session()->flash('info', 'No deleted ideas were selected for restore.');
+        }
+
+        $this->clearSelection();
+    }
+
+    /**
      * Export selected ideas
      */
     public function exportSelected(): void
@@ -241,27 +283,59 @@ new #[Layout('components.layouts.app')] class extends Component {
     <div class="max-w-7xl mx-auto space-y-8">
 
         <!-- Header Section -->
-        <div class="text-center space-y-4" x-data="{ show: false }" x-init="setTimeout(() => show = true, 100)">
-            <div x-show="show"
-                x-transition:enter="transition ease-out duration-1000"
-                x-transition:enter-start="opacity-0 transform scale-95"
-                x-transition:enter-end="opacity-100 transform scale-100"
-                class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-[#FFF200] to-yellow-300 dark:from-yellow-400 dark:to-yellow-500 shadow-lg mx-auto border-2 border-[#231F20] dark:border-zinc-700 mb-6"
-            >
-                <flux:icon name="light-bulb" class="w-10 h-10 text-[#231F20] dark:text-zinc-900" />
+        <div class="flex flex-row justify-between bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
+            <div class="flex gap-4" x-data="{ show: false }" x-init="setTimeout(() => show = true, 100)">
+                <div x-show="show"
+                    x-transition:enter="transition ease-out duration-1000"
+                    x-transition:enter-start="opacity-0 transform scale-95"
+                    x-transition:enter-end="opacity-100 transform scale-100"
+                    class="inline-flex items-center justify-center p-2 rounded-full bg-gradient-to-br from-[#FFF200] to-yellow-300 dark:from-yellow-400 dark:to-yellow-500 shadow-lg border-2 border-[#231F20] dark:border-zinc-700 mb-6"
+                >
+                    <flux:icon name="light-bulb" class="w-8 h-8 text-[#231F20] dark:text-zinc-900" />
+                </div>
+
+                <div x-show="show"
+                    x-transition:enter="transition ease-out duration-1000 delay-200"
+                    x-transition:enter-start="opacity-0 transform translate-y-4"
+                    x-transition:enter-end="opacity-100 transform translate-y-0"
+                >
+                    <h1 class="text-4xl font-bold text-[#231F20] dark:text-white mb-2">
+                        My Ideas
+                    </h1>
+                    <p class="text-lg text-[#9B9EA4] dark:text-zinc-400 max-w-2xl mx-auto">
+                        View and manage all your submitted innovation ideas
+                    </p>
+                </div>
             </div>
 
-            <div x-show="show"
-                 x-transition:enter="transition ease-out duration-1000 delay-200"
-                 x-transition:enter-start="opacity-0 transform translate-y-4"
-                 x-transition:enter-end="opacity-100 transform translate-y-0"
-            >
-                <h1 class="text-4xl font-bold text-[#231F20] dark:text-white mb-2">
-                    My Ideas
-                </h1>
-                <p class="text-lg text-[#9B9EA4] dark:text-zinc-400 max-w-2xl mx-auto">
-                    View and manage all your submitted innovation ideas
-                </p>
+            {{-- add a section with add idea button and bulk export button --}}
+            <div class="flex justify-between items-center mb-4 gap-4">
+                <flux:button
+                    icon="arrow-path"
+                    wire:click="$refresh"
+                    variant="primary"
+                    class="bg-green-600 hover:bg-green-400 text-[#231F20] dark:bg-green-500 dark:hover:bg-green-600"
+                >
+                    {{ __('Refresh') }}
+                </flux:button>
+
+                <flux:button
+                    icon="arrow-down-tray"
+                    wire:click=""
+                    variant="primary"
+                    class="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600"
+                >
+                    <span>{{ __('Export All') }}</span>
+                </flux:button>
+                
+                <flux:button
+                    icon="plus"
+                    wire:click=""
+                    variant="primary"
+                    class="bg-[#FFF200] hover:bg-yellow-400 text-[#231F20] dark:bg-yellow-500 dark:hover:bg-yellow-600"
+                >
+                    <span>{{ __('Add Idea') }}</span>
+                </flux:button>
             </div>
         </div>
 
@@ -435,20 +509,50 @@ new #[Layout('components.layouts.app')] class extends Component {
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div class="flex items-center justify-end space-x-2">
-                                <flux:button wire:click="viewIdea({{ $idea->id }})" variant="ghost" size="sm">
-                                    <flux:icon name="eye" class="h-4 w-4" />
-                                </flux:button>
+                                <flux:tooltip content="View Idea">
+                                    <flux:button
+                                        icon="eye"
+                                        wire:click="viewIdea({{ $idea->id }})"
+                                        variant="primary"
+                                        size="sm"
+                                        class="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600"
+                                    />
+                                </flux:tooltip>
 
                                 @if(in_array($idea->status, ['draft', 'submitted']))
-                                    <flux:button wire:click="editIdea({{ $idea->id }})" variant="ghost" size="sm">
-                                        <flux:icon name="pencil" class="h-4 w-4" />
-                                    </flux:button>
+                                    <flux:tooltip content="Edit Idea">
+                                        <flux:button
+                                            icon="pencil-square"
+                                            wire:click="editIdea({{ $idea->id }})"
+                                            variant="primary"
+                                            size="sm"
+                                            class="bg-green-600 hover:bg-green-700 text-white dark:bg-green-500 dark:hover:bg-green-600"
+                                        >
+                                        </flux:button>
+                                    </flux:tooltip>
+                                @else
+                                    <flux:tooltip content="Editing not allowed at this stage">
+                                        <flux:button
+                                            icon="pencil-square"
+                                            variant="primary"
+                                            size="sm"
+                                            {{-- disabled --}}
+                                            class="bg-green-600 hover:bg-green-700 text-white dark:bg-green-500 dark:hover:bg-green-600 cursor-not-allowed opacity-50"
+                                        >
+                                        </flux:button>
+                                    </flux:tooltip>
                                 @endif
 
-                                @if($idea->status === 'draft')
-                                    <flux:button wire:click="deleteIdea({{ $idea->id }})" variant="danger" size="sm">
-                                        <flux:icon name="trash" class="h-4 w-4" />
-                                    </flux:button>
+                                @if(in_array($idea->status, ['draft', 'submitted']))
+                                    <flux:tooltip content="Delete Idea">
+                                        <flux:button
+                                            icon="trash"
+                                            wire:click="deleteIdea({{ $idea->id }})"
+                                            variant="danger"
+                                            size="sm"
+                                        >
+                                        </flux:button>
+                                    </flux:tooltip>
                                 @endif
                             </div>
                         </td>
@@ -467,11 +571,6 @@ new #[Layout('components.layouts.app')] class extends Component {
                 <flux:button href="{{ route('ideas.submit') }}" variant="primary">
                     <flux:icon name="plus" class="w-4 h-4 mr-2" />
                     Submit New Idea
-                </flux:button>
-
-                <flux:button wire:click="$refresh" variant="primary">
-                    <flux:icon name="arrow-path" class="w-4 h-4 mr-2" />
-                    Refresh
                 </flux:button>
             </div>
         </div>
