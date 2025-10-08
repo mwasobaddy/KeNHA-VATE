@@ -76,6 +76,9 @@ class GoogleAuthController
                     'account_status' => 'active',
                     'password' => Hash::make(str()->random(32)), // Random password since OAuth
                 ]);
+                
+                // Assign the 'user' role to new users
+                $user->assignRole('user');
             }
 
             // Check account status
@@ -95,11 +98,18 @@ class GoogleAuthController
             // Fire login event
             UserLoggedIn::dispatch($user, $this->isFirstLogin($user));
 
-            // Log audit event
-            $this->auditService->log('user_logged_in_via_google', $user->id, [
-                'provider' => 'google',
-                'google_id' => $googleUser->getId(),
-            ]);
+            // Log audit event (also reference the user resource)
+            $this->auditService->log(
+                'user_logged_in_via_google',
+                $user->id,
+                [
+                    'provider' => 'google',
+                    'google_id' => $googleUser->getId(),
+                ],
+                null, // request
+                'users', // resource_type
+                $user->id // resource_id
+            );
 
             // Redirect based on profile completion status
             if (!$this->isProfileComplete($user)) {

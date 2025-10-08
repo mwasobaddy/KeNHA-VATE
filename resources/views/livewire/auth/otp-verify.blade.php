@@ -87,6 +87,9 @@ new #[Layout('components.layouts.auth')] class extends Component {
                 'account_status' => 'active',
                 'points' => 0,
             ]);
+    
+            // Assign the 'user' role to new users
+            $user->assignRole('user');
         }
 
         // Log in the user
