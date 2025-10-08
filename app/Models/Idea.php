@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
 class Idea extends Model
@@ -83,5 +84,21 @@ class Idea extends Model
         }
 
         return 'data:' . $this->attachment_mime . ';base64,' . base64_encode($this->attachment);
+    }
+
+    /**
+     * Get the thematic area that owns the idea.
+     */
+    public function thematicArea(): BelongsTo
+    {
+        return $this->belongsTo(ThematicArea::class);
+    }
+
+    /**
+     * Get the user that owns the idea.
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 }
