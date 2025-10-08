@@ -283,13 +283,13 @@ new #[Layout('components.layouts.app')] class extends Component {
     <div class="max-w-7xl mx-auto space-y-8">
 
         <!-- Header Section -->
-        <div class="flex flex-row justify-between bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
-            <div class="flex gap-4" x-data="{ show: false }" x-init="setTimeout(() => show = true, 100)">
+        <div class="flex flex-wrap justify-between bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6 space-y-4">
+            <div class="flex gap-4 min-w-fit" x-data="{ show: false }" x-init="setTimeout(() => show = true, 100)">
                 <div x-show="show"
                     x-transition:enter="transition ease-out duration-1000"
                     x-transition:enter-start="opacity-0 transform scale-95"
                     x-transition:enter-end="opacity-100 transform scale-100"
-                    class="inline-flex items-center justify-center p-2 rounded-full bg-gradient-to-br from-[#FFF200] to-yellow-300 dark:from-yellow-400 dark:to-yellow-500 shadow-lg border-2 border-[#231F20] dark:border-zinc-700 mb-6"
+                    class="inline-flex items-center justify-center p-2 rounded-full bg-gradient-to-br from-[#FFF200] to-yellow-300 dark:from-yellow-400 dark:to-yellow-500 shadow-lg border-2 border-[#231F20] dark:border-zinc-700 mb-6 h-fit"
                 >
                     <flux:icon name="light-bulb" class="w-8 h-8 text-[#231F20] dark:text-zinc-900" />
                 </div>
@@ -307,16 +307,16 @@ new #[Layout('components.layouts.app')] class extends Component {
                     </p>
                 </div>
             </div>
-
+            
             {{-- add a section with add idea button and bulk export button --}}
-            <div class="flex justify-between items-center mb-4 gap-4">
+            <div class="hidden sm:flex justify-end items-center mb-4 gap-4 flex-1">
                 <flux:button
                     icon="arrow-path"
                     wire:click="$refresh"
                     variant="primary"
                     class="bg-green-600 hover:bg-green-400 text-[#231F20] dark:bg-green-500 dark:hover:bg-green-600"
                 >
-                    {{ __('Refresh') }}
+                    <span>{{ __('Refresh') }}</span>
                 </flux:button>
 
                 <flux:button
@@ -337,7 +337,55 @@ new #[Layout('components.layouts.app')] class extends Component {
                     <span>{{ __('Add Idea') }}</span>
                 </flux:button>
             </div>
+
+            {{-- add a section with add idea button and bulk export button --}}
+            <div class="flex sm:hidden justify-end items-center mb-4 gap-4 flex-1">
+                <flux:button
+                    icon="arrow-path"
+                    wire:click="$refresh"
+                    variant="primary"
+                    class="bg-green-600 hover:bg-green-400 text-[#231F20] dark:bg-green-500 dark:hover:bg-green-600"
+                >
+                </flux:button>
+
+                <flux:button
+                    icon="arrow-down-tray"
+                    wire:click=""
+                    variant="primary"
+                    class="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600"
+                >
+                </flux:button>
+                
+                <flux:button
+                    icon="plus"
+                    wire:click=""
+                    variant="primary"
+                    class="bg-[#FFF200] hover:bg-yellow-400 text-[#231F20] dark:bg-yellow-500 dark:hover:bg-yellow-600"
+                >
+                </flux:button>
+            </div>
         </div>
+
+        {{-- 4 card to display idea stats --}}
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
+                <h2 class="text-sm font-medium text-[#9B9EA4] dark:text-zinc-400">Total Ideas</h2>
+                <p class="mt-1 text-3xl font-semibold text-[#231F20] dark:text-white">{{ \App\Models\Idea::where('user_id', Auth::id())->count() }}</p>
+            </div>
+            <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
+                <h2 class="text-sm font-medium text-[#9B9EA4] dark:text-zinc-400">Draft Ideas</h2>
+                <p class="mt-1 text-3xl font-semibold text-[#231F20] dark:text-white">{{ \App\Models\Idea::where('user_id', Auth::id())->where('status', 'draft')->count() }}</p>
+            </div>
+            <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
+                <h2 class="text-sm font-medium text-[#9B9EA4] dark:text-zinc-400">Submitted Ideas</h2>
+                <p class="mt-1 text-3xl font-semibold text-[#231F20] dark:text-white">{{ \App\Models\Idea::where('user_id', Auth::id())->where('status', 'submitted')->count() }}</p>
+            </div>
+            <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
+                <h2 class="text-sm font-medium text-[#9B9EA4] dark:text-zinc-400">Ideas in Review</h2>
+                <p class="mt-1 text-3xl font-semibold text-[#231F20] dark:text-white">{{ \App\Models\Idea::where('user_id', Auth::id())->where('status', 'in_review')->count() }}</p>
+            </div>
+        </div>
+
 
         <!-- Table Filters -->
         <x-table.filters
@@ -349,22 +397,33 @@ new #[Layout('components.layouts.app')] class extends Component {
         >
             <!-- Status Filter -->
             <x-slot name="filters">
-                <select wire:model.live="status" class="border border-[#9B9EA4]/20 dark:border-zinc-700 rounded-md px-3 py-2 text-sm bg-white dark:bg-zinc-800 text-[#231F20] dark:text-white focus:ring-2 focus:ring-[#FFF200] focus:border-[#FFF200]">
-                    <option value="">All Statuses</option>
-                    <option value="draft">Draft</option>
-                    <option value="submitted">Submitted</option>
-                </select>
+                <flux:select
+                    wire:model.live="status"
+                    class="border border-[#9B9EA4]/20 dark:border-zinc-700 rounded-md px-3 py-2 text-sm bg-white dark:bg-zinc-800 text-[#231F20] dark:text-white focus:ring-2 focus:ring-[#FFF200] focus:border-[#FFF200] !w-fit"
+                >
+                    <flux:select.option value="">All Statuses</flux:select.option>
+                    <flux:select.option value="draft">Draft</flux:select.option>
+                    <flux:select.option value="submitted">Submitted</flux:select.option>
+                </flux:select>
 
-                <select wire:model.live="thematicArea" class="border border-[#9B9EA4]/20 dark:border-zinc-700 rounded-md px-3 py-2 text-sm bg-white dark:bg-zinc-800 text-[#231F20] dark:text-white focus:ring-2 focus:ring-[#FFF200] focus:border-[#FFF200]">
-                    <option value="">All Thematic Areas</option>
+                <flux:select
+                    wire:model.live="thematicArea"
+                    class="border border-[#9B9EA4]/20 dark:border-zinc-700 rounded-md px-3 py-2 text-sm bg-white dark:bg-zinc-800 text-[#231F20] dark:text-white focus:ring-2 focus:ring-[#FFF200] focus:border-[#FFF200] !w-fit"
+                >
+                    <flux:select.option value="">All Thematic Areas</flux:select.option>
                     @foreach($this->getThematicAreas() as $area)
-                        <option value="{{ $area->id }}">{{ $area->name }}</option>
+                        <flux:select.option value="{{ $area->id }}">{{ $area->name }}</flux:select.option>
                     @endforeach
-                </select>
+                </flux:select>
 
-                <flux:button wire:click="resetFilters" variant="ghost" size="sm">
-                    <flux:icon name="x-mark" class="w-4 h-4 mr-1" />
-                    Reset Filters
+                <flux:button
+                    icon="x-mark"
+                    wire:click="resetFilters"
+                    variant="primary"
+                    color="gray"
+                    size="sm"
+                >
+                    {{ __('Reset Filters') }}
                 </flux:button>
             </x-slot>
 
@@ -509,6 +568,31 @@ new #[Layout('components.layouts.app')] class extends Component {
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div class="flex items-center justify-end space-x-2">
+                                <flux:dropdown>
+                                    <flux:tooltip content="More">
+                                        <flux:button
+                                            icon="ellipsis-vertical"
+                                            variant="primary"
+                                            size="sm"
+                                            color="gray"
+                                        />
+                                    </flux:tooltip>
+
+                                    <flux:menu>
+                                        <flux:menu.item
+                                            icon="chat-bubble-left-right"
+                                        >
+                                            {{ __('Reviewer\'s Comment') }}
+                                        </flux:menu.item>
+                                        <flux:menu.separator />
+                                        <flux:menu.item
+                                            icon="chat-bubble-left-right"
+                                        >
+                                            {{ __('Public\'s Comment') }}
+                                        </flux:menu.item>
+                                    </flux:menu>
+                                </flux:dropdown>
+
                                 <flux:tooltip content="View Idea">
                                     <flux:button
                                         icon="eye"
@@ -536,19 +620,42 @@ new #[Layout('components.layouts.app')] class extends Component {
                                             icon="pencil-square"
                                             variant="primary"
                                             size="sm"
-                                            {{-- disabled --}}
                                             class="bg-green-600 hover:bg-green-700 text-white dark:bg-green-500 dark:hover:bg-green-600 cursor-not-allowed opacity-50"
                                         >
                                         </flux:button>
                                     </flux:tooltip>
                                 @endif
 
-                                @if(in_array($idea->status, ['draft', 'submitted']))
-                                    <flux:tooltip content="Delete Idea">
+                                {{-- if the idea has the column deleted_at null --}}
+                                @if(is_null($idea->deleted_at))
+                                    @if(in_array($idea->status, ['draft', 'submitted']))
+                                        <flux:tooltip content="Delete Idea">
+                                            <flux:button
+                                                icon="trash"
+                                                wire:click="deleteIdea({{ $idea->id }})"
+                                                variant="danger"
+                                                size="sm"
+                                            >
+                                            </flux:button>
+                                        </flux:tooltip>
+                                        @else
+                                        <flux:tooltip content="Deletion not allowed at this stage">
+                                            <flux:button
+                                                icon="trash"
+                                                variant="danger"
+                                                size="sm"
+                                                class="cursor-not-allowed opacity-50"
+                                            >
+                                            </flux:button>
+                                        </flux:tooltip>
+                                    @endif
+                                @else
+                                    <flux:tooltip content="Restore Idea">
                                         <flux:button
-                                            icon="trash"
-                                            wire:click="deleteIdea({{ $idea->id }})"
-                                            variant="danger"
+                                            icon="arrow-uturn-left"
+                                            wire:click="restoreIdea({{ $idea->id }})"
+                                            variant="primary"
+                                            color="pink"
                                             size="sm"
                                         >
                                         </flux:button>
@@ -563,17 +670,6 @@ new #[Layout('components.layouts.app')] class extends Component {
 
         <!-- Table Pagination -->
         <x-table.pagination :paginator="$this->getIdeas()" />
-
-        <!-- Quick Actions -->
-        <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
-            <h3 class="text-lg font-semibold text-[#231F20] dark:text-white mb-4">Quick Actions</h3>
-            <div class="flex flex-wrap gap-3">
-                <flux:button href="{{ route('ideas.submit') }}" variant="primary">
-                    <flux:icon name="plus" class="w-4 h-4 mr-2" />
-                    Submit New Idea
-                </flux:button>
-            </div>
-        </div>
 
     </div>
 
