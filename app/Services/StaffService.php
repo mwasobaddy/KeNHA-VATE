@@ -65,7 +65,7 @@ class StaffService
     /**
      * Reject staff member approval.
      */
-    public function rejectBySupervisor(Staff $staff, User $supervisor, string $reason = null): void
+    public function rejectBySupervisor(Staff $staff, User $supervisor, ?string $reason = null): void
     {
         // Notify the staff member
         $message = 'Your KeNHA staff approval request has been rejected';

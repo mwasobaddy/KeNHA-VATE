@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Hash;
 
 class UserService
 {
+    public function __construct(
+        private readonly AuditService $auditService
+    ) {}
     /**
      * Create a new user.
      */
@@ -91,8 +94,19 @@ class UserService
      */
     public function updateStaffProfile(Staff $staff, array $data): Staff
     {
+        $oldData = $staff->toArray();
         $staff->update($data);
-        return $staff->fresh();
+        $updatedStaff = $staff->fresh();
+
+        // Audit log: Staff profile updated
+        $this->auditService->logUserActivity($staff->user, 'staff_profile_updated', [
+            'staff_id' => $staff->id,
+            'old_data' => $oldData,
+            'new_data' => $updatedStaff->toArray(),
+            'fields_changed' => array_keys(array_diff_assoc($data, $oldData)),
+        ]);
+
+        return $updatedStaff;
     }
 
     /**
@@ -100,7 +114,15 @@ class UserService
      */
     public function createStaffProfile(User $user, array $data): Staff
     {
-        return $user->staff()->create($data);
+        $staff = $user->staff()->create($data);
+
+        // Audit log: Staff profile created
+        $this->auditService->logUserActivity($user, 'staff_profile_created', [
+            'staff_id' => $staff->id,
+            'staff_data' => $data,
+        ]);
+
+        return $staff;
     }
 
     /**
@@ -114,6 +136,12 @@ class UserService
             'last_terms_accepted_at' => now(),
             'current_terms_version' => $version,
         ]);
+
+        // Audit log: Terms accepted
+        $this->auditService->logUserActivity($user, 'terms_accepted', [
+            'version' => $version,
+            'acceptance_count' => $user->terms_accepted_count + 1,
+        ]);
     }
 
     /**
@@ -121,7 +149,14 @@ class UserService
      */
     public function changeAccountStatus(User $user, string $status): void
     {
+        $oldStatus = $user->account_status;
         $user->update(['account_status' => $status]);
+
+        // Audit log: Account status changed
+        $this->auditService->logUserActivity($user, 'account_status_changed', [
+            'old_status' => $oldStatus,
+            'new_status' => $status,
+        ]);
     }
 
     /**

@@ -9,6 +9,9 @@ use App\Models\User;
 
 class PointService
 {
+    public function __construct(
+        private readonly AuditService $auditService
+    ) {}
     /**
      * Award points to a user.
      */
@@ -20,7 +23,7 @@ class PointService
         ?int $referenceId = null
     ): void {
         // Create transaction record
-        PointTransaction::create([
+        $transaction = PointTransaction::create([
             'user_id' => $user->id,
             'points' => $points,
             'transaction_type' => 'earned',
@@ -31,6 +34,16 @@ class PointService
 
         // Update user's total points
         $user->increment('points', $points);
+
+        // Audit log: Points awarded
+        $this->auditService->logUserActivity($user, 'points_awarded', [
+            'points' => $points,
+            'description' => $description,
+            'reference_type' => $referenceType,
+            'reference_id' => $referenceId,
+            'transaction_id' => $transaction->id,
+            'new_balance' => $user->fresh()->points,
+        ]);
 
         // Send notification
         app(NotificationService::class)->success(
@@ -50,7 +63,7 @@ class PointService
         }
 
         // Create transaction record
-        PointTransaction::create([
+        $transaction = PointTransaction::create([
             'user_id' => $user->id,
             'points' => -$points,
             'transaction_type' => 'redeemed',
@@ -59,6 +72,14 @@ class PointService
 
         // Update user's total points
         $user->decrement('points', $points);
+
+        // Audit log: Points redeemed
+        $this->auditService->logUserActivity($user, 'points_redeemed', [
+            'points' => $points,
+            'description' => $description,
+            'transaction_id' => $transaction->id,
+            'new_balance' => $user->fresh()->points,
+        ]);
 
         return true;
     }

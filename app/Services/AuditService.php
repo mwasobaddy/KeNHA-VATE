@@ -17,7 +17,9 @@ class AuditService
         string $eventType,
         ?int $userId = null,
         ?array $metadata = null,
-        ?Request $request = null
+        ?Request $request = null,
+        ?string $resourceType = null,
+        ?int $resourceId = null
     ): void {
         $request = $request ?? request();
 
@@ -27,6 +29,8 @@ class AuditService
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
             'metadata' => $metadata,
+            'resource_type' => $resourceType,
+            'resource_id' => $resourceId,
         ]);
     }
 

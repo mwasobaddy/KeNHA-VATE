@@ -15,10 +15,13 @@ class AuditLog extends Model
         'ip_address',
         'user_agent',
         'metadata',
+        'resource_type',
+        'resource_id',
     ];
 
     protected $casts = [
         'metadata' => 'array',
+        'resource_id' => 'integer',
     ];
 
     /**

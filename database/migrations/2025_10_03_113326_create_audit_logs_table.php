@@ -18,6 +18,9 @@ return new class extends Migration
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
             $table->json('metadata')->nullable();
+            // Optional resource reference (e.g., ideas, users, etc.)
+            $table->string('resource_type')->nullable();
+            $table->unsignedBigInteger('resource_id')->nullable();
             $table->timestamps();
 
             $table->index(['user_id', 'event_type']);
