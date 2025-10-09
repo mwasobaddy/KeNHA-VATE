@@ -15,7 +15,7 @@ Route::middleware(['auth', 'verified', 'check.account.status', 'check.profile.co
     Volt::route('ideas/submit', 'ideas.submit')->name('ideas.submit');
     Volt::route('ideas/edit_draft/{draft}', 'ideas.submit')->name('ideas.edit_draft.draft')->where('draft', '[a-zA-Z0-9-]+');
     Volt::route('ideas/my-ideas', 'ideas.table')->name('ideas.table');
-    Volt::route('ideas/{idea}/comments', 'ideas.comments')->name('ideas.comments')->where('idea', '[0-9]+');
+    Volt::route('ideas/comments/{idea}', 'ideas.comments')->name('ideas.comments')->where('idea', '[a-zA-Z0-9-]+');
 });
 
 // Account status routes

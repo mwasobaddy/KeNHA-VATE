@@ -581,7 +581,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                     <flux:menu>
                                         <flux:menu.item
                                             icon="chat-bubble-left-right"
-                                            href="{{ route('ideas.comments', $idea->id) }}"
+                                            href="{{ route('ideas.comments', $idea->slug) }}"
                                         >
                                             {{ __('View Comments') }}
                                         </flux:menu.item>
