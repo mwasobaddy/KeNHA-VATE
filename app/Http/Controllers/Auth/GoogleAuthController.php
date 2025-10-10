@@ -34,7 +34,7 @@ class GoogleAuthController
     public function callback(Request $request): RedirectResponse
     {
         // This ensures the originally requested URL is preserved throughout the authentication flow
-        if (!Session::has('url.intended') && Session::has('url.intended')) {
+        if (Session::has('url.intended')) {
             // Keep existing intended URL
         } else if (request()->has('intended')) {
             Session::put('url.intended', request('intended'));
