@@ -29,7 +29,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
 
         // Store the intended URL in session if not already set
         // This ensures the originally requested URL is preserved throughout the authentication flow
-        if (!Session::has('url.intended') && Session::has('url.intended')) {
+        if (Session::has('url.intended')) {
             // Keep existing intended URL
         } else if (request()->has('intended')) {
             Session::put('url.intended', request('intended'));
