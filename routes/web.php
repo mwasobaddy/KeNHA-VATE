@@ -8,7 +8,7 @@ Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
-Route::middleware(['auth', 'verified', 'check.session.validity', 'check.account.status', 'check.profile.completion', 'check.terms.accepted'])->group(function () {
+Route::middleware(['auth', 'check.session.validity', 'check.account.status', 'check.profile.completion', 'check.terms.accepted'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');
 
     // Ideas
@@ -18,13 +18,16 @@ Route::middleware(['auth', 'verified', 'check.session.validity', 'check.account.
     Volt::route('ideas/comments/{idea}', 'ideas.comments')->name('ideas.comments')->where('idea', '[a-zA-Z0-9-]+');
 });
 
-// Account status routes
-Volt::route('account/banned', 'account.banned')->name('account.banned');
-Volt::route('account/disabled', 'account.disabled')->name('account.disabled');
+Route::middleware(['auth', 'check.session.validity'])->group(function () {
+});
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'check.session.validity'])->group(function () {
+    // Account status routes
+    Volt::route('account/banned', 'account.banned')->name('account.banned');
+    Volt::route('account/disabled', 'account.disabled')->name('account.disabled');
+
+    // User settings
     Route::redirect('settings', 'settings/profile');
-
     Volt::route('settings/profile', 'settings.profile')->name('profile.edit');
     Volt::route('settings/password', 'settings.password')->name('password.edit');
     Volt::route('settings/appearance', 'settings.appearance')->name('appearance.edit');

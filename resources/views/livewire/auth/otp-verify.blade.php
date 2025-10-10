@@ -85,6 +85,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
             // New user - create account
             $user = User::create([
                 'email' => $this->email,
+                'email_verified_at' => now(), // OTP serves as email verification
                 'account_status' => 'active',
                 'points' => 0,
             ]);
@@ -95,6 +96,9 @@ new #[Layout('components.layouts.auth')] class extends Component {
 
         // Check if two-factor authentication is required
         if (Features::canManageTwoFactorAuthentication() && $user->hasEnabledTwoFactorAuthentication()) {
+            // Set the intended URL for after 2FA completion
+            Session::put('url.intended', route('dashboard', absolute: false));
+            
             Session::put([
                 'login.id' => $user->getKey(),
                 'login.remember' => $this->remember,
