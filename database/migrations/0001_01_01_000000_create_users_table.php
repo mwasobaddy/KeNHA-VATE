@@ -30,6 +30,7 @@ return new class extends Migration
             $table->unsignedInteger('points')->default(0);
             $table->string('password')->nullable();
             $table->rememberToken();
+            $table->unsignedInteger('session_version')->default(1);
             $table->timestamps();
             $table->softDeletes();
         });
