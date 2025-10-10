@@ -1,28 +1,36 @@
-<x-layouts.auth>
-    <div class="flex flex-col gap-6">
-        <div
-            class="relative w-full h-auto"
-            x-cloak
-            x-data="{
-                showRecoveryInput: @js($errors->has('recovery_code')),
-                code: '',
-                recovery_code: '',
-                toggleInput() {
-                    this.showRecoveryInput = !this.showRecoveryInput;
+<?php
 
-                    this.code = '';
-                    this.recovery_code = '';
+use Livewire\Attributes\Layout;
+use Livewire\Volt\Component;
 
-                    $dispatch('clear-2fa-auth-code');
-            
-                    $nextTick(() => {
-                        this.showRecoveryInput
-                            ? this.$refs.recovery_code?.focus()
-                            : $dispatch('focus-2fa-auth-code');
-                    });
-                },
-            }"
-        >
+new #[Layout('components.layouts.auth')] class extends Component {
+    // Component logic here
+}; ?>
+
+<div class="flex flex-col gap-6">
+    <div
+        class="relative w-full h-auto"
+        x-cloak
+        x-data="{
+            showRecoveryInput: @js($errors->has('recovery_code')),
+            code: '',
+            recovery_code: '',
+            toggleInput() {
+                this.showRecoveryInput = !this.showRecoveryInput;
+
+                this.code = '';
+                this.recovery_code = '';
+
+                $dispatch('clear-2fa-auth-code');
+        
+                $nextTick(() => {
+                    this.showRecoveryInput
+                        ? this.$refs.recovery_code?.focus()
+                        : $dispatch('focus-2fa-auth-code');
+                });
+            },
+        }"
+    >
             <div x-show="!showRecoveryInput">
                 <x-auth-header
                     :title="__('Authentication Code')"
@@ -96,4 +104,3 @@
             </form>
         </div>
     </div>
-</x-layouts.auth>
