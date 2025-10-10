@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Laravel\Fortify\Features;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
@@ -92,7 +93,22 @@ new #[Layout('components.layouts.auth')] class extends Component {
             $user->assignRole('user');
         }
 
-        // Log in the user
+        // Check if two-factor authentication is required
+        if (Features::canManageTwoFactorAuthentication() && $user->hasEnabledTwoFactorAuthentication()) {
+            Session::put([
+                'login.id' => $user->getKey(),
+                'login.remember' => $this->remember,
+            ]);
+
+            // Fire login event for gamification (user will be logged in after 2FA)
+            $isFirstLogin = !$user->wasRecentlyCreated && $user->created_at->diffInMinutes(now()) < 5;
+            UserLoggedIn::dispatch($user, $isFirstLogin);
+
+            $this->redirect(route('two-factor.login'), navigate: true);
+            return;
+        }
+
+        // Log in the user (only if no 2FA required)
         Auth::login($user, $this->remember);
         Session::regenerate();
 
