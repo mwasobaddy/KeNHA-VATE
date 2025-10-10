@@ -44,7 +44,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
                     'message' => 'Your account has been banned. Please contact support for assistance.',
                     'duration' => 7000,
                 ]);
-                $this->redirect(route('account.banned'), navigate: true);
+                $this->redirect(route('account.banned'));
                 return;
             }
 
@@ -55,7 +55,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
                     'message' => 'Your account has been disabled. Please contact support to re-enable it.',
                     'duration' => 7000,
                 ]);
-                $this->redirect(route('account.disabled'), navigate: true);
+                $this->redirect(route('account.disabled'));
                 return;
             }
         }
@@ -74,7 +74,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
                 'message' => 'A one-time password has been sent to your email address. Please check your inbox and enter the code to continue.',
                 'duration' => 5000,
             ]);
-            $this->redirect(route('otp.verify'), navigate: true);
+            $this->redirect(route('otp.verify'));
         } else {
             Session::put('immediate_popup_notification', [
                 'type' => 'error',
@@ -82,7 +82,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
                 'message' => 'Unable to send OTP. Please try again.',
                 'duration' => 5000,
             ]);
-            $this->redirect(route('login'), navigate: true);
+            $this->redirect(route('login'));
         }
     }
 

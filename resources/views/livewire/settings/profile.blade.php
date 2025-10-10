@@ -284,7 +284,7 @@ new class extends Component {
                     $user->id // resource_id
                 );
 
-                $this->redirect(route('terms.show'), navigate: true);
+                $this->redirect(route('terms.show'));
                 return;
             }
 
