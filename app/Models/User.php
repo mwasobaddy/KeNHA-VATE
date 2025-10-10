@@ -40,6 +40,7 @@ class User extends Authenticatable
         'current_terms_version',
         'points',
         'password',
+        'session_version',
     ];
 
     /**
@@ -181,5 +182,22 @@ class User extends Authenticatable
     public function comments(): HasMany
     {
         return $this->hasMany(Comment::class);
+    }
+
+    /**
+     * Invalidate all sessions for this user by incrementing session version.
+     */
+    public function invalidateAllSessions(): void
+    {
+        $this->increment('session_version');
+    }
+
+    /**
+     * Check if the current session is valid for this user.
+     */
+    public function isSessionValid(): bool
+    {
+        $sessionVersion = session('session_version');
+        return $sessionVersion === $this->session_version;
     }
 }

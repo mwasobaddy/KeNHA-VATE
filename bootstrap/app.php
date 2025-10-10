@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'check.account.status' => \App\Http\Middleware\CheckAccountStatus::class,
             'check.profile.completion' => \App\Http\Middleware\CheckProfileCompletion::class,
             'check.terms.accepted' => \App\Http\Middleware\CheckTermsAccepted::class,
+            'check.session.validity' => \App\Http\Middleware\CheckSessionValidity::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

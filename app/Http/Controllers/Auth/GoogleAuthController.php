@@ -95,6 +95,9 @@ class GoogleAuthController
             // Log the user in
             Auth::login($user, true);
 
+            // Store session version for validity checking
+            session(['session_version' => $user->session_version]);
+
             // Fire login event
             UserLoggedIn::dispatch($user, $this->isFirstLogin($user));
 

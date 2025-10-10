@@ -8,7 +8,7 @@ Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
-Route::middleware(['auth', 'verified', 'check.account.status', 'check.profile.completion', 'check.terms.accepted'])->group(function () {
+Route::middleware(['auth', 'verified', 'check.session.validity', 'check.account.status', 'check.profile.completion', 'check.terms.accepted'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');
 
     // Ideas

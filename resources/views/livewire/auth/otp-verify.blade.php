@@ -96,6 +96,9 @@ new #[Layout('components.layouts.auth')] class extends Component {
         Auth::login($user, $this->remember);
         Session::regenerate();
 
+        // Store session version for validity checking
+        Session::put('session_version', $user->session_version);
+
         // Clear rate limiter
         RateLimiter::clear($this->throttleKey());
 
