@@ -28,7 +28,12 @@ new #[Layout('components.layouts.auth')] class extends Component {
     {
         $this->email = session('otp_email', '');
         if (empty($this->email)) {
-            $this->redirect(route('login'));
+            $this->redirect(route('login'), navigate: true);
+        }
+
+        // Ensure intended URL is preserved in session
+        if (!Session::has('url.intended') && request()->has('intended')) {
+            Session::put('url.intended', request('intended'));
         }
 
         // Load resend timer from session if present
@@ -112,7 +117,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
             $isFirstLogin = !$user->wasRecentlyCreated && $user->created_at->diffInMinutes(now()) < 5;
             UserLoggedIn::dispatch($user, $isFirstLogin);
 
-            $this->redirect(route('two-factor.login'));
+            $this->redirect(route('two-factor.login'), navigate: true);
             return;
         }
 
@@ -132,18 +137,18 @@ new #[Layout('components.layouts.auth')] class extends Component {
 
         // Check if profile is complete
         if (!$this->isProfileComplete($user)) {
-            $this->redirect(route('profile.edit'));
+            $this->redirect(route('profile.edit'), navigate: true);
             return;
         }
 
         // Check if terms accepted
         if (!$user->hasAcceptedTerms()) {
-            $this->redirect(route('terms.show'));
+            $this->redirect(route('terms.show'), navigate: true);
             return;
         }
 
         // Redirect to dashboard
-        $this->redirectIntended(default: route('dashboard', absolute: false));
+        $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
     }
 
     /**
@@ -183,7 +188,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
      */
     public function backToLogin(): void
     {
-        $this->redirect(route('login'));
+        $this->redirect(route('login'), navigate: true);
     }
 
     /**

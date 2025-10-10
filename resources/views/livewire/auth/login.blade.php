@@ -27,6 +27,20 @@ new #[Layout('components.layouts.auth')] class extends Component {
 
         $this->ensureIsNotRateLimited();
 
+        // Store the intended URL in session if not already set
+        // This ensures the originally requested URL is preserved throughout the authentication flow
+        if (!Session::has('url.intended') && Session::has('url.intended')) {
+            // Keep existing intended URL
+        } else if (request()->has('intended')) {
+            Session::put('url.intended', request('intended'));
+        } else if (request()->headers->has('referer')) {
+            // Fallback: store referer if no intended URL
+            $referer = request()->headers->get('referer');
+            if ($referer && !str_contains($referer, route('login'))) {
+                Session::put('url.intended', $referer);
+            }
+        }
+
         $user = User::where('email', $this->email)->first();
         
         // make the terms_accepted false upon every new login
@@ -44,7 +58,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
                     'message' => 'Your account has been banned. Please contact support for assistance.',
                     'duration' => 7000,
                 ]);
-                $this->redirect(route('account.banned'));
+                $this->redirect(route('account.banned'), navigate: true);
                 return;
             }
 
@@ -55,7 +69,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
                     'message' => 'Your account has been disabled. Please contact support to re-enable it.',
                     'duration' => 7000,
                 ]);
-                $this->redirect(route('account.disabled'));
+                $this->redirect(route('account.disabled'), navigate: true);
                 return;
             }
         }
@@ -74,7 +88,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
                 'message' => 'A one-time password has been sent to your email address. Please check your inbox and enter the code to continue.',
                 'duration' => 5000,
             ]);
-            $this->redirect(route('otp.verify'));
+            $this->redirect(route('otp.verify'), navigate: true);
         } else {
             Session::put('immediate_popup_notification', [
                 'type' => 'error',
@@ -82,7 +96,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
                 'message' => 'Unable to send OTP. Please try again.',
                 'duration' => 5000,
             ]);
-            $this->redirect(route('login'));
+            $this->redirect(route('login'), navigate: true);
         }
     }
 

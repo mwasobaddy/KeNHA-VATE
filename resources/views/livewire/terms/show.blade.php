@@ -22,7 +22,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                 'message' => 'You must accept the terms and conditions to continue.',
                 'duration' => 5000,
             ]);
-            $this->redirect(route('terms.show'));
+            $this->redirect(route('terms.show'), navigate: true);
             return;
         }
 
@@ -40,7 +40,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                 'message' => 'Welcome to KENHAVATE! You can now access all features.',
                 'duration' => 5000,
             ]);
-            $this->redirectIntended(default: route('dashboard', absolute: false));
+            $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
         } catch (\Exception $e) {
             Session::put('immediate_popup_notification', [
                 'type' => 'error',
@@ -48,7 +48,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                 'message' => 'There was an error accepting the terms. Please try again.',
                 'duration' => 5000,
             ]);
-            $this->redirect(route('terms.show'));
+            $this->redirect(route('terms.show'), navigate: true);
         }
     }
 
@@ -58,7 +58,7 @@ new #[Layout('components.layouts.app')] class extends Component {
     public function declineTerms(): void
     {
         Auth::logout();
-        $this->redirect(route('login'));
+        $this->redirect(route('login'), navigate: true);
     }
 }; ?>
 

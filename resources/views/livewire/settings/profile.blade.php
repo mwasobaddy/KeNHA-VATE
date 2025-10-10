@@ -42,6 +42,11 @@ new class extends Component {
     {
         $user = Auth::user();
 
+        // Ensure intended URL is preserved in session during profile setup
+        if (!Session::has('url.intended') && request()->has('intended')) {
+            Session::put('url.intended', request('intended'));
+        }
+
         // Check if this is initial profile setup
         $this->is_initial_setup = !$user->staff || !$user->staff->isProfileComplete();
 
@@ -284,7 +289,7 @@ new class extends Component {
                     $user->id // resource_id
                 );
 
-                $this->redirect(route('terms.show'));
+                $this->redirect(route('terms.show'), navigate: true);
                 return;
             }
 
