@@ -19,9 +19,6 @@ Route::middleware(['auth', 'check.session.validity', 'check.account.status', 'ch
 });
 
 Route::middleware(['auth', 'check.session.validity'])->group(function () {
-});
-
-Route::middleware(['auth', 'check.session.validity'])->group(function () {
     // Account status routes
     Volt::route('account/banned', 'account.banned')->name('account.banned');
     Volt::route('account/disabled', 'account.disabled')->name('account.disabled');

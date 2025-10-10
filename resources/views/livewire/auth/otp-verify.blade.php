@@ -96,8 +96,11 @@ new #[Layout('components.layouts.auth')] class extends Component {
 
         // Check if two-factor authentication is required
         if (Features::canManageTwoFactorAuthentication() && $user->hasEnabledTwoFactorAuthentication()) {
-            // Set the intended URL for after 2FA completion
-            Session::put('url.intended', route('dashboard', absolute: false));
+            // Preserve the intended URL for after 2FA completion (don't override with dashboard)
+            // If no intended URL exists, set it to dashboard as fallback
+            if (!Session::has('url.intended')) {
+                Session::put('url.intended', route('dashboard', absolute: false));
+            }
             
             Session::put([
                 'login.id' => $user->getKey(),

@@ -33,14 +33,14 @@ new #[Layout('components.layouts.app')] class extends Component {
             // Accept terms with current version
             $userService->acceptTerms($user, '1.0');
 
-            // Show success toast and redirect to dashboard
+            // Show success toast and redirect to intended URL or dashboard
             Session::put('immediate_popup_notification', [
                 'type' => 'success',
                 'title' => 'Terms Accepted',
                 'message' => 'Welcome to KENHAVATE! You can now access all features.',
                 'duration' => 5000,
             ]);
-            $this->redirect(route('dashboard'), navigate: true);
+            $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
         } catch (\Exception $e) {
             Session::put('immediate_popup_notification', [
                 'type' => 'error',
