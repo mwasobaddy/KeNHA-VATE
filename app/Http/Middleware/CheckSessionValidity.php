@@ -18,16 +18,23 @@ class CheckSessionValidity
     {
         $user = Auth::user();
 
-        if ($user && !$user->isSessionValid()) {
-            // Session is invalid, log out the user
-            Auth::logout();
+        if ($user) {
+            // If session version is not set but we have login data (from 2FA flow), restore it
+            if (!session()->has('session_version') && session()->has('login.id')) {
+                session()->put('session_version', $user->session_version);
+            }
 
-            // Clear the session
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
+            if (!$user->isSessionValid()) {
+                // Session is invalid, log out the user
+                Auth::logout();
 
-            // Redirect to login with a message
-            return redirect()->route('login')->with('error', 'Your session has expired. Please log in again.');
+                // Clear the session
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                // Redirect to login with a message
+                return redirect()->route('login')->with('error', 'Your session has expired. Please log in again.');
+            }
         }
 
         return $next($request);

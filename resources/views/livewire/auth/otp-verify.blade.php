@@ -102,6 +102,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
             Session::put([
                 'login.id' => $user->getKey(),
                 'login.remember' => $this->remember,
+                'session_version' => $user->session_version, // Store session version for validity checking
             ]);
 
             // Fire login event for gamification (user will be logged in after 2FA)

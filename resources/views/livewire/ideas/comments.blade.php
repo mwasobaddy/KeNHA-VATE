@@ -383,6 +383,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                         <div class="flex-1">
                             <flux:input
                                 wire:model.live.debounce.300ms="search"
+                                :loading="false"
                                 type="text"
                                 placeholder="Search comments..."
                                 class="w-full rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-700 text-[#231F20] dark:text-white placeholder:text-[#9B9EA4] dark:placeholder:text-zinc-500 focus:border-[#FFF200] dark:focus:border-yellow-400 focus:ring-2 focus:ring-[#FFF200]/20 dark:focus:ring-yellow-400/20 transition-all duration-200"
@@ -398,7 +399,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                             <!-- Status Filter -->
                             <flux:select
                                 wire:model.live="filterStatus"
-                                class="flex-1 min-w-[140px] rounded-lg border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900/50 text-sm text-[#231F20] dark:text-white focus:border-[#FFF200] dark:focus:border-yellow-400 focus:ring-2 focus:ring-[#FFF200]/20 dark:focus:ring-yellow-400/20 transition-all duration-200"
+                                class="!w-fit rounded-lg border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900/50 text-sm text-[#231F20] dark:text-white focus:border-[#FFF200] dark:focus:border-yellow-400 focus:ring-2 focus:ring-[#FFF200]/20 dark:focus:ring-yellow-400/20 transition-all duration-200"
                             >
                                 <flux:select.option value="">All Comments</flux:select.option>
                                 <flux:select.option value="read">Read</flux:select.option>
