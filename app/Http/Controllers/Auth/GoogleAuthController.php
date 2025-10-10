@@ -10,6 +10,7 @@ use App\Services\AuditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Session;
 use Laravel\Socialite\Facades\Socialite;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
@@ -32,6 +33,19 @@ class GoogleAuthController
      */
     public function callback(Request $request): RedirectResponse
     {
+        // This ensures the originally requested URL is preserved throughout the authentication flow
+        if (!Session::has('url.intended') && Session::has('url.intended')) {
+            // Keep existing intended URL
+        } else if (request()->has('intended')) {
+            Session::put('url.intended', request('intended'));
+        } else if (request()->headers->has('referer')) {
+            // Fallback: store referer if no intended URL
+            $referer = request()->headers->get('referer');
+            if ($referer && !str_contains($referer, route('login'))) {
+                Session::put('url.intended', $referer);
+            }
+        }
+
         try {
             $googleUser = Socialite::driver('google')->user();
 
