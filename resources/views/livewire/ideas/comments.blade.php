@@ -647,7 +647,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 
                             <!-- Comment Content -->
                             <div class="ml-0 sm:ml-[52px] mb-4">
-                                <p class="text-sm sm:text-base text-[#231F20] dark:text-white leading-relaxed whitespace-pre-wrap break-words">
+                                <p class="text-sm sm:text-base text-[#231F20] dark:text-white leading-relaxed break-words">
                                     {{ $comment->content }}
                                 </p>
                             </div>
@@ -779,7 +779,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 
                                         <!-- Reply Content -->
                                         <div class="ml-0 sm:ml-[44px]">
-                                            <p class="text-sm text-[#231F20] dark:text-white leading-relaxed whitespace-pre-wrap break-words">
+                                            <p class="text-sm text-[#231F20] dark:text-white leading-relaxed break-words">
                                                 {{ $reply->content }}
                                             </p>
                                         </div>
