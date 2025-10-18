@@ -38,6 +38,7 @@ new #[Layout('components.layouts.app')] class extends Component {
     {
         $query = Idea::where('user_id', Auth::id())
             ->with(['thematicArea'])
+            ->withCount('comments')
             ->when($this->search, function (Builder $query) {
                 $query->where(function (Builder $q) {
                     $q->where('idea_title', 'like', '%' . $this->search . '%')
@@ -300,10 +301,10 @@ new #[Layout('components.layouts.app')] class extends Component {
                     x-transition:enter-end="opacity-100 transform translate-y-0"
                 >
                     <h1 class="text-4xl font-bold text-[#231F20] dark:text-white mb-2">
-                        My Ideas
+                        {{ __('My Ideas') }}
                     </h1>
                     <p class="text-lg text-[#9B9EA4] dark:text-zinc-400 max-w-2xl mx-auto">
-                        View and manage all your submitted innovation ideas
+                        {{ __('View and manage all your submitted innovation ideas') }}
                     </p>
                 </div>
             </div>
@@ -483,7 +484,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                         :currentSort="$sortField"
                         :currentDirection="$sortDirection"
                     >
-                        Title
+                        {{ __('Status') }}
                     </x-table.column>
                     <x-table.column
                         sortable
@@ -491,7 +492,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                         :currentSort="$sortField"
                         :currentDirection="$sortDirection"
                     >
-                        Thematic Area
+                        {{ __('Status') }}
                     </x-table.column>
                     <x-table.column
                         sortable
@@ -499,7 +500,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                         :currentSort="$sortField"
                         :currentDirection="$sortDirection"
                     >
-                        Status
+                        {{ __('Status') }}
                     </x-table.column>
                     <x-table.column
                         sortable
@@ -508,9 +509,9 @@ new #[Layout('components.layouts.app')] class extends Component {
                         :currentDirection="$sortDirection"
                         align="right"
                     >
-                        Created
+                        {{ __('Status') }}
                     </x-table.column>
-                    <th class="px-6 py-3 text-right">Actions</th>
+                    <th class="px-6 py-3 text-right">{{ __('Actions') }}</th>
                 </tr>
             </x-slot>
 
@@ -559,7 +560,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                 };
                                 $statusText = ucfirst($idea->status);
                             @endphp
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-{{ $statusColor }}-100 dark:bg-{{ $statusColor }}-900 text-{{ $statusColor }}-800 dark:text-{{ $statusColor }}-200">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-{{ $statusColor }}-100 dark:bg-{{ $statusColor }}-900/20 text-{{ $statusColor }}-800 dark:text-{{ $statusColor }}-400">
                                 {{ $statusText }}
                             </span>
                         </td>
@@ -568,26 +569,43 @@ new #[Layout('components.layouts.app')] class extends Component {
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div class="flex items-center justify-end space-x-2">
-                                <flux:dropdown>
+                                <div class="relative" x-data="{ open: false }">
                                     <flux:tooltip content="More">
                                         <flux:button
                                             icon="ellipsis-vertical"
                                             variant="primary"
                                             size="sm"
                                             color="gray"
+                                            @click="open = !open"
+                                            @click.away="open = false"
                                         />
                                     </flux:tooltip>
 
-                                    <flux:menu>
-                                        <flux:menu.item
-                                            icon="chat-bubble-left-right"
-                                            href="{{ route('ideas.comments', $idea->slug) }}"
-                                        >
-                                            {{ __('View Comments') }}
-                                        </flux:menu.item>
-                                        <flux:menu.separator />
-                                    </flux:menu>
-                                </flux:dropdown>
+                                    <div
+                                        x-show="open"
+                                        x-transition
+                                        class="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white dark:bg-zinc-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+                                        role="menu"
+                                        aria-orientation="vertical"
+                                        tabindex="-1"
+                                    >
+                                        <div class="py-1" role="none">
+                                            <a
+                                                href="{{ route('ideas.comments', $idea->slug) }}"
+                                                class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700"
+                                                role="menuitem"
+                                                tabindex="-1"
+                                            >
+                                                <flux:icon name="chat-bubble-left-right" class="mr-2 h-4 w-4" />
+                                                {{ __('View Comments') }}
+                                                {{-- total number of comments --}}
+                                                <span class="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400">
+                                                    {{ $idea->comments_count ?? 0 }}
+                                                </span>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
 
                                 <flux:tooltip content="View Idea">
                                     <flux:button
@@ -672,7 +690,7 @@ new #[Layout('components.layouts.app')] class extends Component {
     <style>
         /* Custom Scrollbar for better UX */
         ::-webkit-scrollbar {
-            width: 8px;
+            width: 5px;
         }
 
         ::-webkit-scrollbar-track {
