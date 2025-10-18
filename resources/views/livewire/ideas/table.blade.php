@@ -27,9 +27,20 @@ new #[Layout('components.layouts.app')] class extends Component {
     // Pagination
     public int $perPage = 10;
 
+
     // Bulk actions
     public array $selectedIdeas = [];
     public bool $selectAll = false;
+
+    /**
+     * Sync filter state to the URL query string for persistence and shareability
+     */
+    public array $queryString = [
+        'search' => ['except' => ''],
+        'status' => ['except' => ''],
+        'thematicArea' => ['except' => ''],
+        'page' => ['except' => 1],
+    ];
 
     /**
      * Get the ideas for the current user
@@ -106,12 +117,7 @@ new #[Layout('components.layouts.app')] class extends Component {
     public function viewIdea(int $ideaId)
     {
         $idea = Idea::where('user_id', Auth::id())->findOrFail($ideaId);
-        // For now, redirect to edit if draft, or show read-only view
-        if ($idea->status === 'draft') {
-            return redirect()->route('ideas.edit_draft.draft', ['draft' => $idea->slug]);
-        }
-        // TODO: Implement view-only page for submitted ideas
-        session()->flash('info', 'View functionality for submitted ideas will be implemented soon.');
+        return redirect()->route('ideas.show', ['idea' => $idea->slug]);
     }
 
     /**
@@ -484,7 +490,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                         :currentSort="$sortField"
                         :currentDirection="$sortDirection"
                     >
-                        {{ __('Status') }}
+                        {{ __('Title') }}
                     </x-table.column>
                     <x-table.column
                         sortable
@@ -492,7 +498,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                         :currentSort="$sortField"
                         :currentDirection="$sortDirection"
                     >
-                        {{ __('Status') }}
+                        {{ __('Thematic Area') }}
                     </x-table.column>
                     <x-table.column
                         sortable
@@ -509,7 +515,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                         :currentDirection="$sortDirection"
                         align="right"
                     >
-                        {{ __('Status') }}
+                        {{ __('Created') }}
                     </x-table.column>
                     <th class="px-6 py-3 text-right">{{ __('Actions') }}</th>
                 </tr>
