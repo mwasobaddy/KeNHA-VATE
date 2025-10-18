@@ -8,9 +8,12 @@ use App\Models\Comment;
 use App\Models\Idea;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\Eloquent\Collection;
+use App\Services\CommentService;
 
 new #[Layout('components.layouts.app')] class extends Component {
     use WithPagination;
+
+    public CommentService $commentService;
     public int $ideaId;
     public string $newComment = '';
     public ?int $replyTo = null;
@@ -33,6 +36,7 @@ new #[Layout('components.layouts.app')] class extends Component {
      */
     public function mount(string $idea): void
     {
+        $this->commentService = app(CommentService::class);
         $ideaModel = Idea::where('slug', $idea)
             ->firstOrFail();
         $this->ideaId = $ideaModel->id;
@@ -52,13 +56,22 @@ new #[Layout('components.layouts.app')] class extends Component {
     }
 
     /**
-     * Get top-level comments (not replies) with search and filters
+     * Get top-level comments (not replies) with search and filters - optimized version
      */
     public function getTopLevelComments()
     {
+        // Use optimized base query from Comment model
         $query = Comment::where('idea_id', $this->ideaId)
-            ->whereNull('parent_id')
-            ->with(['user', 'replies.user']);
+            ->topLevel()
+            ->active()
+            ->with([
+                'user:id,first_name,other_names',
+                'replies' => function ($query) {
+                    $query->active()
+                          ->with('user:id,first_name,other_names')
+                          ->orderBy('created_at', 'asc');
+                }
+            ]);
 
         // Apply search filter
         if ($this->search) {
@@ -71,11 +84,12 @@ new #[Layout('components.layouts.app')] class extends Component {
             });
         }
 
-        // Apply status filter
+        // Apply status filter (simplified - would need read status tracking)
         if ($this->filterStatus === 'read') {
-            $query->whereNotNull('read_at');
+            // For now, skip read status filtering as it requires additional implementation
+            // $query->whereNotNull('read_at');
         } elseif ($this->filterStatus === 'unread') {
-            $query->whereNull('read_at');
+            // $query->whereNull('read_at');
         }
 
         return $query->orderBy('created_at', 'desc')
@@ -94,7 +108,7 @@ new #[Layout('components.layouts.app')] class extends Component {
         $this->submitting = true;
 
         try {
-            Comment::create([
+            $this->commentService->createComment([
                 'user_id' => Auth::id(),
                 'idea_id' => $this->ideaId,
                 'content' => $this->newComment,
@@ -143,7 +157,7 @@ new #[Layout('components.layouts.app')] class extends Component {
         $this->submitting = true;
 
         try {
-            Comment::create([
+            $this->commentService->createComment([
                 'user_id' => Auth::id(),
                 'idea_id' => $this->ideaId,
                 'content' => $this->replyContent,
@@ -183,14 +197,10 @@ new #[Layout('components.layouts.app')] class extends Component {
                          ->first();
 
         if ($comment) {
-            $comment->delete();
+            $this->commentService->deleteComment($comment);
             session()->flash('success', 'Comment deleted successfully!');
-        } else {
-            session()->flash('error', 'You can only delete your own comments.');
         }
-    }
-
-    /**
+    }    /**
      * Handle search updates
      */
     public function updatingSearch(): void

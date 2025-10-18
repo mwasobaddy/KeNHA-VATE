@@ -101,4 +101,64 @@ class Comment extends Model
 
         return $slug;
     }
+
+    /**
+     * Get top-level comments for an idea with optimized eager loading.
+     */
+    public static function getTopLevelCommentsForIdea(int $ideaId): \Illuminate\Database\Eloquent\Collection
+    {
+        return static::with([
+            'user:id,first_name,other_names',
+            'replies' => function (HasMany $query) {
+                $query->with('user:id,first_name,other_names')
+                      ->orderBy('created_at', 'asc')
+                      ->where('comment_is_disabled', false);
+            }
+        ])
+        ->where('idea_id', $ideaId)
+        ->whereNull('parent_id')
+        ->where('comment_is_disabled', false)
+        ->orderBy('created_at', 'desc')
+        ->get();
+    }
+
+    /**
+     * Get cached comment count for an idea.
+     */
+    public static function getCachedCommentCount(int $ideaId): int
+    {
+        return \Illuminate\Support\Facades\Cache::remember(
+            "idea.{$ideaId}.comment_count",
+            3600, // Cache for 1 hour
+            function () use ($ideaId) {
+                return static::where('idea_id', $ideaId)
+                    ->where('comment_is_disabled', false)
+                    ->count();
+            }
+        );
+    }
+
+    /**
+     * Clear comment count cache for an idea.
+     */
+    public static function clearCommentCountCache(int $ideaId): void
+    {
+        \Illuminate\Support\Facades\Cache::forget("idea.{$ideaId}.comment_count");
+    }
+
+    /**
+     * Scope for active (non-disabled) comments.
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('comment_is_disabled', false);
+    }
+
+    /**
+     * Scope for top-level comments only.
+     */
+    public function scopeTopLevel($query)
+    {
+        return $query->whereNull('parent_id');
+    }
 }

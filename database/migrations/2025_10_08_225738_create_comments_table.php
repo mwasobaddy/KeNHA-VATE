@@ -22,6 +22,11 @@ return new class extends Migration
             $table->unsignedInteger('replies_count')->default(0);
             $table->timestamps();
             $table->softDeletes();
+
+            // Performance indexes for large-scale comment system
+            $table->index(['idea_id', 'parent_id', 'created_at'], 'comments_idea_parent_created_idx');
+            $table->index(['user_id', 'created_at'], 'comments_user_created_idx');
+            $table->index(['parent_id'], 'comments_parent_idx');
         });
     }
 
