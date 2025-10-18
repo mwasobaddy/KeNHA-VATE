@@ -353,6 +353,24 @@ new #[Layout('components.layouts.app')] class extends Component {
     }
 
     /**
+     * Parse comment content and highlight tagged user names in blue
+     */
+    public function parseCommentContent(string $content): string
+    {
+        // Pattern to match @FirstName LastName format
+        $pattern = '/@([A-Za-z]+)\s+([A-Za-z]+)/';
+
+        return preg_replace_callback($pattern, function ($matches) {
+            $firstName = $matches[1];
+            $lastName = $matches[2];
+            $fullName = $firstName . ' ' . $lastName;
+
+            // Return the highlighted name
+            return '<span class="text-blue-600 dark:text-blue-400 font-semibold">@' . $fullName . '</span>';
+        }, $content);
+    }
+
+    /**
      * Test method to check if Livewire is working
      */
     public function testMethod(): void
@@ -715,7 +733,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                         {{ $isCurrentUser ? 'You' : ($comment->user->first_name . ' ' . $comment->user->other_names) }}
                                     </span>
                                     <span class="text-sm text-[#231F20] dark:text-white leading-relaxed break-words flex-1">
-                                        {{ $comment->content }}
+                                        {!! $this->parseCommentContent($comment->content) !!}
                                     </span>
                                 </div>
 
@@ -872,7 +890,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                                                 {{ $isReplyCurrentUser ? 'You' : ($reply->user->first_name . ' ' . $reply->user->other_names) }}
                                                             </span>
                                                             <span class="text-xs text-[#231F20] dark:text-white leading-relaxed break-words flex-1">
-                                                                {{ $reply->content }}
+                                                                {!! $this->parseCommentContent($reply->content) !!}
                                                             </span>
                                                         </div>
 
@@ -1066,7 +1084,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                             </span>
                                         </div>
                                         <p class="text-sm text-[#231F20] dark:text-white leading-relaxed">
-                                            {{ $conversationComment->content }}
+                                            {!! $this->parseCommentContent($conversationComment->content) !!}
                                         </p>
                                     </div>
                                 </div>
