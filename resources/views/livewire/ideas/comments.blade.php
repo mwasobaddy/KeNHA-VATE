@@ -281,10 +281,10 @@ new #[Layout('components.layouts.app')] class extends Component {
                         x-transition:enter-end="opacity-100 translate-x-0"
                     >
                         <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#231F20] dark:text-white tracking-tight">
-                            Discussion
+                            {{ __('Discussion') }}
                         </h1>
                         <p class="mt-2 text-base sm:text-lg text-[#9B9EA4] dark:text-zinc-400">
-                            Share insights and collaborate on this innovation
+                            {{ __('Share insights and collaborate on this innovation') }}
                         </p>
                     </div>
                 </div>
@@ -292,13 +292,13 @@ new #[Layout('components.layouts.app')] class extends Component {
                 <!-- Quick Action Button - Desktop -->
                 <div class="hidden sm:block">
                     <flux:button
+                        icon="plus"
                         wire:click="toggleCommentModal"
                         variant="primary"
                         {{-- size="lg" --}}
                         class="rounded-xl bg-[#FFF200] hover:bg-[#FFF200]/90 dark:bg-yellow-400 dark:hover:bg-yellow-300 px-6 py-3 text-[#231F20] dark:text-zinc-900 font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
                     >
-                        <flux:icon name="plus" class="w-5 h-5 mr-2" />
-                        Add Comment
+                        {{ __('Add Comment') }}
                     </flux:button>
                 </div>
             </div>
@@ -477,7 +477,7 @@ new #[Layout('components.layouts.app')] class extends Component {
             ></div>
 
             <!-- Modal Container -->
-            <div class="flex min-h-screen items-end sm:items-center justify-center p-0 sm:p-4">
+            <div class="flex min-h-screen items-center justify-center p-0 sm:p-4">
                 <div
                     x-show="show"
                     x-transition:enter="transition ease-out duration-300"
@@ -557,12 +557,15 @@ new #[Layout('components.layouts.app')] class extends Component {
         </div>
 
         <!-- ============================================
-             COMMENTS LIST - Enhanced cards with animations
+             COMMENTS LIST - Instagram-style layout
              ============================================ -->
-        <div class="space-y-4 sm:space-y-6">
+        <div class="space-y-6">
             @forelse($this->getTopLevelComments() as $index => $comment)
-                <div 
-                    x-data="{ show: false }" 
+                @php
+                    $isCurrentUser = $comment->user_id === Auth::id();
+                @endphp
+                <div
+                    x-data="{ show: false }"
                     x-init="setTimeout(() => show = true, {{ 500 + ($index * 100) }})"
                     x-show="show"
                     x-transition:enter="transition ease-out duration-500"
@@ -570,238 +573,234 @@ new #[Layout('components.layouts.app')] class extends Component {
                     x-transition:enter-end="opacity-100 translate-y-0"
                     class="group"
                 >
-                    <!-- Comment Card -->
-                    <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm hover:shadow-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden transition-all duration-300">
-                        <div class="p-5 sm:p-6">
-                            <!-- Comment Header -->
-                            <div class="flex items-start justify-between gap-4 mb-4">
-                                <div class="flex items-start gap-3 flex-1 min-w-0">
-                                    <!-- Avatar -->
-                                    <div class="flex-shrink-0">
-                                        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-[#FFF200] via-yellow-300 to-yellow-400 dark:from-yellow-400 dark:via-yellow-500 dark:to-yellow-600 flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300">
-                                            <span class="text-sm sm:text-base font-bold text-[#231F20] dark:text-zinc-900">
-                                                {{ substr($comment->user->first_name, 0, 1) }}{{ substr($comment->user->other_names, 0, 1) }}
-                                            </span>
-                                        </div>
-                                    </div>
+                    <!-- Main Comment -->
+                    <div class="flex gap-3">
+                        <!-- Avatar -->
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#FFF200] via-yellow-300 to-yellow-400 dark:from-yellow-400 dark:via-yellow-500 dark:to-yellow-600 flex items-center justify-center shadow-sm">
+                                <span class="text-xs font-bold text-[#231F20] dark:text-zinc-900">
+                                    {{ substr($comment->user->first_name, 0, 1) }}{{ substr($comment->user->other_names, 0, 1) }}
+                                </span>
+                            </div>
+                        </div>
 
-                                    <!-- User Info -->
-                                    <div class="flex-1 min-w-0">
-                                        <h4 class="text-sm sm:text-base font-semibold text-[#231F20] dark:text-white truncate">
-                                            {{ $comment->user->first_name }} {{ $comment->user->other_names }}
-                                        </h4>
-                                        <div class="flex items-center gap-2 mt-1 text-xs sm:text-sm text-[#9B9EA4] dark:text-zinc-400">
-                                            <flux:icon name="clock" class="w-3.5 h-3.5" />
-                                            <span>{{ $comment->created_at->diffForHumans() }}</span>
-                                            @if($comment->read_at)
-                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-medium">
-                                                    <flux:icon name="check" class="w-3 h-3" />
-                                                    Read
-                                                </span>
-                                            @endif
-                                        </div>
-                                    </div>
+                        <!-- Comment Content -->
+                        <div class="flex-1 min-w-0">
+                            <div class="bg-gray-50 dark:bg-zinc-800 rounded-2xl px-4 py-3 {{ $isCurrentUser ? 'bg-[#FFF200]/10 dark:bg-yellow-400/10' : '' }}">
+                                <!-- Username and Content -->
+                                <div class="flex items-start gap-2 mb-1">
+                                    <span class="font-semibold text-sm text-[#231F20] dark:text-white">
+                                        {{ $isCurrentUser ? 'You' : ($comment->user->first_name . ' ' . $comment->user->other_names) }}
+                                    </span>
+                                    <span class="text-sm text-[#231F20] dark:text-white leading-relaxed break-words flex-1">
+                                        {{ $comment->content }}
+                                    </span>
                                 </div>
 
-                                <!-- Action Buttons -->
-                                <div class="flex items-center gap-1.5 flex-shrink-0">
-                                    @if($comment->user_id !== Auth::id() && !$comment->read_at)
-                                        <flux:tooltip content="Mark as read" placement="top">
+                                <!-- Timestamp and Actions -->
+                                <div class="flex items-center justify-between mt-2">
+                                    <div class="flex items-center gap-4">
+                                        <span class="text-xs text-[#9B9EA4] dark:text-zinc-400">
+                                            {{ $comment->created_at->diffForHumans() }}
+                                        </span>
+                                        @if($comment->read_at)
+                                            <span class="text-xs text-green-600 dark:text-green-400 font-medium">
+                                                Read
+                                            </span>
+                                        @endif
+                                    </div>
+
+                                    <!-- Action Buttons -->
+                                    <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                        @if($comment->user_id !== Auth::id() && !$comment->read_at)
                                             <flux:button
                                                 wire:click="markAsRead({{ $comment->id }})"
                                                 variant="ghost"
                                                 size="sm"
-                                                class="p-2 rounded-lg text-[#9B9EA4] hover:text-green-600 dark:text-zinc-400 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200"
+                                                class="p-1 h-6 w-6 text-[#9B9EA4] hover:text-green-600 dark:text-zinc-400 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200"
                                             >
-                                                <flux:icon name="eye" class="w-4 h-4" />
+                                                <flux:icon name="eye" class="w-3 h-3" />
                                             </flux:button>
-                                        </flux:tooltip>
-                                    @endif
+                                        @endif
 
-                                    <flux:tooltip content="Reply" placement="top">
                                         <flux:button
                                             wire:click="showReply({{ $comment->id }})"
                                             variant="ghost"
                                             size="sm"
-                                            class="p-2 rounded-lg text-[#9B9EA4] hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200"
+                                            class="p-1 h-6 w-6 text-[#9B9EA4] hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200"
                                         >
-                                            <flux:icon name="chat-bubble-left" class="w-4 h-4" />
+                                            <span class="text-xs font-medium">Reply</span>
                                         </flux:button>
-                                    </flux:tooltip>
 
-                                    @if($comment->user_id === Auth::id())
-                                        <flux:tooltip content="Delete" placement="top">
+                                        @if($comment->user_id === Auth::id())
                                             <flux:button
                                                 wire:click="deleteComment({{ $comment->id }})"
                                                 wire:confirm="Are you sure you want to delete this comment?"
                                                 variant="ghost"
                                                 size="sm"
-                                                class="p-2 rounded-lg text-[#9B9EA4] hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
+                                                class="p-1 h-6 w-6 text-[#9B9EA4] hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
                                             >
-                                                <flux:icon name="trash" class="w-4 h-4" />
+                                                <flux:icon name="trash" class="w-3 h-3" />
                                             </flux:button>
-                                        </flux:tooltip>
-                                    @endif
+                                        @endif
+                                    </div>
                                 </div>
-                            </div>
-
-                            <!-- Comment Content -->
-                            <div class="ml-0 sm:ml-[52px] mb-4">
-                                <p class="text-sm sm:text-base text-[#231F20] dark:text-white leading-relaxed break-words">
-                                    {{ $comment->content }}
-                                </p>
                             </div>
 
                             <!-- Reply Form -->
                             @if($replyTo === $comment->id && $showReplyForm)
-                                <div 
-                                    class="ml-0 sm:ml-[52px] border-t border-zinc-200 dark:border-zinc-700 pt-4 mt-4"
+                                <div
+                                    class="mt-3 ml-6"
                                     x-data="{ show: true }"
                                     x-show="show"
                                     x-transition:enter="transition ease-out duration-300"
                                     x-transition:enter-start="opacity-0 -translate-y-2"
                                     x-transition:enter-end="opacity-100 translate-y-0"
                                 >
-                                    <form wire:submit="addReply" class="space-y-3">
-                                        <div class="relative">
-                                            <flux:textarea
-                                                wire:model="replyContent"
-                                                placeholder="Write your reply..."
-                                                rows="3"
-                                                class="w-full rounded-xl border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50 text-[#231F20] dark:text-white placeholder:text-[#9B9EA4] dark:placeholder:text-zinc-500 focus:border-[#FFF200] dark:focus:border-yellow-400 focus:ring-2 focus:ring-[#FFF200]/20 dark:focus:ring-yellow-400/20 transition-all duration-200 resize-none"
-                                            />
+                                    <div class="flex gap-3">
+                                        <div class="flex-shrink-0">
+                                            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-[#FFF200] via-yellow-300 to-yellow-400 dark:from-yellow-400 dark:via-yellow-500 dark:to-yellow-600 flex items-center justify-center shadow-sm">
+                                                <span class="text-xs font-bold text-[#231F20] dark:text-zinc-900">
+                                                    {{ substr(Auth::user()->first_name, 0, 1) }}{{ substr(Auth::user()->other_names, 0, 1) }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="flex-1">
+                                            <form wire:submit="addReply" class="flex gap-2">
+                                                <flux:textarea
+                                                    wire:model="replyContent"
+                                                    placeholder="Write a reply..."
+                                                    rows="1"
+                                                    class="flex-1 text-sm rounded-lg border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-[#231F20] dark:text-white placeholder:text-[#9B9EA4] dark:placeholder:text-zinc-500 focus:border-[#FFF200] dark:focus:border-yellow-400 focus:ring-2 focus:ring-[#FFF200]/20 dark:focus:ring-yellow-400/20 transition-all duration-200 resize-none"
+                                                />
+                                                <div class="flex gap-1">
+                                                    <flux:button
+                                                        type="button"
+                                                        wire:click="hideReply"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        class="px-3 py-1 text-xs text-[#9B9EA4] hover:text-[#231F20] dark:text-zinc-400 dark:hover:text-white"
+                                                    >
+                                                        Cancel
+                                                    </flux:button>
+                                                    <flux:button
+                                                        type="submit"
+                                                        wire:loading.attr="disabled"
+                                                        :disabled="$submitting"
+                                                        variant="primary"
+                                                        size="sm"
+                                                        class="px-3 py-1 text-xs bg-[#FFF200] hover:bg-[#FFF200]/90 dark:bg-yellow-400 dark:hover:bg-yellow-300 text-[#231F20] dark:text-zinc-900 font-semibold"
+                                                    >
+                                                        Reply
+                                                    </flux:button>
+                                                </div>
+                                            </form>
                                             @error('replyContent')
-                                                <p class="mt-2 text-sm text-red-600 dark:text-red-400 flex items-center gap-1.5">
-                                                    <flux:icon name="exclamation-circle" class="w-4 h-4" />
+                                                <p class="mt-1 text-xs text-red-600 dark:text-red-400">
                                                     {{ $message }}
                                                 </p>
                                             @enderror
                                         </div>
+                                    </div>
+                                </div>
+                            @endif
 
-                                        <div class="flex justify-end gap-2">
+                            <!-- Replies Section -->
+                            @if($comment->replies->count() > 0)
+                                <div class="mt-4 ml-6 space-y-3">
+                                    @php
+                                        $isExpanded = in_array($comment->id, $this->expandedReplies);
+                                        $visibleReplies = $isExpanded ? $comment->replies : $comment->replies->take(2);
+                                    @endphp
+
+                                    @foreach($visibleReplies as $reply)
+                                        @php
+                                            $isReplyCurrentUser = $reply->user_id === Auth::id();
+                                        @endphp
+                                        <div class="flex gap-3">
+                                            <!-- Reply Avatar -->
+                                            <div class="flex-shrink-0">
+                                                <div class="w-6 h-6 rounded-full bg-gradient-to-br from-[#FFF200] via-yellow-300 to-yellow-400 dark:from-yellow-400 dark:via-yellow-500 dark:to-yellow-600 flex items-center justify-center shadow-sm">
+                                                    <span class="text-xs font-bold text-[#231F20] dark:text-zinc-900">
+                                                        {{ substr($reply->user->first_name, 0, 1) }}{{ substr($reply->user->other_names, 0, 1) }}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <!-- Reply Content -->
+                                            <div class="flex-1 min-w-0">
+                                                <div class="bg-gray-50 dark:bg-zinc-800 rounded-xl px-3 py-2 {{ $isReplyCurrentUser ? 'bg-[#FFF200]/10 dark:bg-yellow-400/10' : '' }}">
+                                                    <!-- Reply Username and Content -->
+                                                    <div class="flex items-start gap-2 mb-1">
+                                                        <span class="font-semibold text-xs text-[#231F20] dark:text-white">
+                                                            {{ $isReplyCurrentUser ? 'You' : ($reply->user->first_name . ' ' . $reply->user->other_names) }}
+                                                        </span>
+                                                        <span class="text-xs text-[#231F20] dark:text-white leading-relaxed break-words flex-1">
+                                                            {{ $reply->content }}
+                                                        </span>
+                                                    </div>
+
+                                                    <!-- Reply Timestamp and Actions -->
+                                                    <div class="flex items-center justify-between">
+                                                        <div class="flex items-center gap-3">
+                                                            <span class="text-xs text-[#9B9EA4] dark:text-zinc-400">
+                                                                {{ $reply->created_at->diffForHumans() }}
+                                                            </span>
+                                                            @if($reply->read_at)
+                                                                <span class="text-xs text-green-600 dark:text-green-400 font-medium">
+                                                                    Read
+                                                                </span>
+                                                            @endif
+                                                        </div>
+
+                                                        <!-- Reply Action Buttons -->
+                                                        <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                                            @if($reply->user_id !== Auth::id() && !$reply->read_at)
+                                                                <flux:button
+                                                                    wire:click="markAsRead({{ $reply->id }})"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    class="p-1 h-5 w-5 text-[#9B9EA4] hover:text-green-600 dark:text-zinc-400 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200"
+                                                                >
+                                                                    <flux:icon name="eye" class="w-2.5 h-2.5" />
+                                                                </flux:button>
+                                                            @endif
+
+                                                            @if($reply->user_id === Auth::id())
+                                                                <flux:button
+                                                                    wire:click="deleteComment({{ $reply->id }})"
+                                                                    wire:confirm="Are you sure you want to delete this reply?"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    class="p-1 h-5 w-5 text-[#9B9EA4] hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
+                                                                >
+                                                                    <flux:icon name="trash" class="w-2.5 h-2.5" />
+                                                                </flux:button>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endforeach
+
+                                    <!-- Show More/Less Replies Button -->
+                                    @if($comment->replies->count() > 2)
+                                        <div class="ml-9">
                                             <flux:button
-                                                type="button"
-                                                wire:click="hideReply"
+                                                wire:click="toggleReplies({{ $comment->id }})"
                                                 variant="ghost"
                                                 size="sm"
-                                                class="rounded-lg px-3 py-1.5 text-[#9B9EA4] hover:text-[#231F20] dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-all duration-200"
+                                                class="text-xs text-[#9B9EA4] hover:text-[#231F20] dark:text-zinc-400 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-zinc-800 transition-all duration-200"
                                             >
-                                                <flux:icon name="x-mark" class="w-4 h-4 mr-1.5" />
-                                                Cancel
-                                            </flux:button>
-                                            <flux:button
-                                                type="submit"
-                                                wire:loading.attr="disabled"
-                                                :disabled="$submitting"
-                                                variant="primary"
-                                                size="sm"
-                                                class="rounded-lg bg-[#FFF200] hover:bg-[#FFF200]/90 dark:bg-yellow-400 dark:hover:bg-yellow-300 px-4 py-1.5 text-[#231F20] dark:text-zinc-900 font-semibold shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50"
-                                            >
-                                                <flux:icon name="paper-airplane" class="w-4 h-4 mr-1.5" />
-                                                Reply
+                                                <flux:icon name="{{ $isExpanded ? 'chevron-up' : 'chevron-down' }}" class="w-3 h-3 mr-1" />
+                                                {{ $isExpanded ? 'Hide replies' : 'View ' . ($comment->replies->count() - 2) . ' more ' . (($comment->replies->count() - 2) > 1 ? 'replies' : 'reply') }}
                                             </flux:button>
                                         </div>
-                                    </form>
+                                    @endif
                                 </div>
                             @endif
                         </div>
-
-                        <!-- Replies Section -->
-                        @if($comment->replies->count() > 0)
-                            <div class="border-t border-zinc-200 dark:border-zinc-700 bg-gradient-to-b from-zinc-50/50 to-transparent dark:from-zinc-900/30 dark:to-transparent">
-                                @php
-                                    $isExpanded = in_array($comment->id, $this->expandedReplies);
-                                    $visibleReplies = $isExpanded ? $comment->replies : $comment->replies->take(2);
-                                @endphp
-
-                                @foreach($visibleReplies as $reply)
-                                    <div class="border-l-4 border-[#FFF200] dark:border-yellow-400 ml-4 sm:ml-6 p-4 sm:p-5">
-                                        <!-- Reply Header -->
-                                        <div class="flex items-start justify-between gap-3 mb-3">
-                                            <div class="flex items-start gap-2.5 flex-1 min-w-0">
-                                                <!-- Reply Avatar (smaller) -->
-                                                <div class="flex-shrink-0">
-                                                    <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br from-[#FFF200] via-yellow-300 to-yellow-400 dark:from-yellow-400 dark:via-yellow-500 dark:to-yellow-600 flex items-center justify-center shadow-sm">
-                                                        <span class="text-xs sm:text-sm font-bold text-[#231F20] dark:text-zinc-900">
-                                                            {{ substr($reply->user->first_name, 0, 1) }}{{ substr($reply->user->other_names, 0, 1) }}
-                                                        </span>
-                                                    </div>
-                                                </div>
-
-                                                <!-- Reply User Info -->
-                                                <div class="flex-1 min-w-0">
-                                                    <h5 class="text-sm font-semibold text-[#231F20] dark:text-white truncate">
-                                                        {{ $reply->user->first_name }} {{ $reply->user->other_names }}
-                                                    </h5>
-                                                    <div class="flex items-center gap-2 mt-0.5 text-xs text-[#9B9EA4] dark:text-zinc-400">
-                                                        <flux:icon name="clock" class="w-3 h-3" />
-                                                        <span>{{ $reply->created_at->diffForHumans() }}</span>
-                                                        @if($reply->read_at)
-                                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-medium">
-                                                                <flux:icon name="check" class="w-2.5 h-2.5" />
-                                                                Read
-                                                            </span>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <!-- Reply Actions -->
-                                            <div class="flex items-center gap-1 flex-shrink-0">
-                                                @if($reply->user_id !== Auth::id() && !$reply->read_at)
-                                                    <flux:tooltip content="Mark as read" placement="top">
-                                                        <flux:button
-                                                            wire:click="markAsRead({{ $reply->id }})"
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            class="p-1.5 rounded-lg text-[#9B9EA4] hover:text-green-600 dark:text-zinc-400 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200"
-                                                        >
-                                                            <flux:icon name="eye" class="w-3.5 h-3.5" />
-                                                        </flux:button>
-                                                    </flux:tooltip>
-                                                @endif
-
-                                                @if($reply->user_id === Auth::id())
-                                                    <flux:tooltip content="Delete reply" placement="top">
-                                                        <flux:button
-                                                            wire:click="deleteComment({{ $reply->id }})"
-                                                            wire:confirm="Are you sure you want to delete this reply?"
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            class="p-1.5 rounded-lg text-[#9B9EA4] hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
-                                                        >
-                                                            <flux:icon name="trash" class="w-3.5 h-3.5" />
-                                                        </flux:button>
-                                                    </flux:tooltip>
-                                                @endif
-                                            </div>
-                                        </div>
-
-                                        <!-- Reply Content -->
-                                        <div class="ml-0 sm:ml-[44px]">
-                                            <p class="text-sm text-[#231F20] dark:text-white leading-relaxed break-words">
-                                                {{ $reply->content }}
-                                            </p>
-                                        </div>
-                                    </div>
-                                @endforeach
-
-                                <!-- Show More/Less Replies Button -->
-                                @if($comment->replies->count() > 2)
-                                    <div class="px-4 sm:px-6 py-3 border-l-4 border-[#FFF200] dark:border-yellow-400 ml-4 sm:ml-6">
-                                        <flux:button
-                                            wire:click="toggleReplies({{ $comment->id }})"
-                                            variant="ghost"
-                                            size="sm"
-                                            class="rounded-lg text-[#FFF200] hover:text-yellow-600 dark:text-yellow-400 dark:hover:text-yellow-300 font-medium hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-all duration-200"
-                                        >
-                                            <flux:icon name="{{ $isExpanded ? 'chevron-up' : 'chevron-down' }}" class="w-4 h-4 mr-1.5" />
-                                            {{ $isExpanded ? 'Show fewer replies' : 'Show ' . ($comment->replies->count() - 2) . ' more ' . (($comment->replies->count() - 2) > 1 ? 'replies' : 'reply') }}
-                                        </flux:button>
-                                    </div>
-                                @endif
-                            </div>
-                        @endif
                     </div>
                 </div>
             @empty
@@ -836,13 +835,13 @@ new #[Layout('components.layouts.app')] class extends Component {
 
                         <!-- CTA Button -->
                         <flux:button
+                            icon="plus"
                             wire:click="toggleCommentModal"
                             variant="primary"
                             {{-- size="lg" --}}
                             class="rounded-xl bg-[#FFF200] hover:bg-[#FFF200]/90 dark:bg-yellow-400 dark:hover:bg-yellow-300 px-8 py-3 text-[#231F20] dark:text-zinc-900 font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
                         >
-                            <flux:icon name="plus" class="w-5 h-5 mr-2" />
-                            Add First Comment
+                            {{ __('Add First Comment') }}
                         </flux:button>
                     </div>
                 </div>
@@ -911,12 +910,12 @@ new #[Layout('components.layouts.app')] class extends Component {
 
                             <!-- Refresh Button -->
                             <flux:button
+                                icon="arrow-path"
                                 wire:click="$refresh"
-                                variant="ghost"
+                                variant="filled"
                                 size="sm"
                                 class="rounded-lg px-4 py-2 text-[#9B9EA4] hover:text-[#231F20] dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-all duration-200"
                             >
-                                <flux:icon name="arrow-path" class="w-4 h-4 mr-2" />
                                 {{ __('Refresh Comments') }}
                             </flux:button>
                         </div>
@@ -1035,11 +1034,160 @@ new #[Layout('components.layouts.app')] class extends Component {
                 padding-left: 1rem;
                 padding-right: 1rem;
             }
-            
+
             /* Stack flex items on mobile */
             .mobile-stack {
                 flex-direction: column;
             }
+        }
+
+        /* Instagram-style comment enhancements */
+        .instagram-comment {
+            position: relative;
+        }
+
+        .instagram-comment:hover .comment-actions {
+            opacity: 1;
+        }
+
+        .comment-actions {
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .comment-avatar {
+            transition: transform 0.2s ease;
+        }
+
+        .instagram-comment:hover .comment-avatar {
+            transform: scale(1.05);
+        }
+
+        .comment-bubble {
+            background: #f8f9fa;
+            border-radius: 18px;
+            position: relative;
+        }
+
+        .dark .comment-bubble {
+            background: rgb(39 39 42);
+        }
+
+        .reply-bubble {
+            background: #f1f3f4;
+            border-radius: 14px;
+        }
+
+        .dark .reply-bubble {
+            background: rgb(63 63 70);
+        }
+
+        .comment-content {
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .comment-username {
+            font-weight: 600;
+            color: #262626;
+        }
+
+        .dark .comment-username {
+            color: #f1f1f1;
+        }
+
+        .comment-text {
+            color: #262626;
+            margin-left: 4px;
+        }
+
+        .dark .comment-text {
+            color: #f1f1f1;
+        }
+
+        .comment-timestamp {
+            color: #8e8e8e;
+            font-size: 12px;
+            font-weight: 400;
+        }
+
+        .comment-reply-btn {
+            color: #8e8e8e;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 0;
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+
+        .comment-reply-btn:hover {
+            color: #0095f6;
+        }
+
+        .replies-thread {
+            border-left: 2px solid #e1e5e9;
+            margin-left: 20px;
+            padding-left: 16px;
+            position: relative;
+        }
+
+        .dark .replies-thread {
+            border-left-color: rgb(63 63 70);
+        }
+
+        .replies-thread::before {
+            content: '';
+            position: absolute;
+            left: -6px;
+            top: 0;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #e1e5e9;
+        }
+
+        .dark .replies-thread::before {
+            background: rgb(63 63 70);
+        }
+
+        /* Mobile optimizations */
+        @media (max-width: 640px) {
+            .comment-bubble {
+                border-radius: 16px;
+            }
+
+            .reply-bubble {
+                border-radius: 12px;
+            }
+
+            .comment-avatar {
+                width: 32px;
+                height: 32px;
+            }
+        }
+
+        /* Smooth animations */
+        .instagram-comment {
+            animation: fadeInUp 0.4s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Focus states */
+        .comment-reply-btn:focus,
+        .comment-action-btn:focus {
+            outline: 2px solid #0095f6;
+            outline-offset: 2px;
         }
     </style>
 
