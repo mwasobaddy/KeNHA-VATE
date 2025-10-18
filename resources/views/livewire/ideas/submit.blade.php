@@ -484,8 +484,8 @@ new #[Layout('components.layouts.app')] class extends Component {
     }
 }; ?>
 
-<div class="backdrop-blur-lg min-h-screen bg-gradient-to-br from-[#F8EBD5]/20 via-white to-[#F8EBD5] dark:from-zinc-900/20 dark:via-zinc-800 dark:to-zinc-900 border border-zinc-200 dark:border-yellow-400 rounded-3xl py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-5xl mx-auto space-y-8">
+<div class="backdrop-blur-lg">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 border border-zinc-200 dark:border-yellow-400 rounded-3xl bg-gradient-to-br from-[#F8EBD5]/20 via-white to-[#F8EBD5] dark:from-zinc-900/20 dark:via-zinc-800 dark:to-zinc-900 border">
         
         <!-- Header Section with Icon -->
         <div class="text-center space-y-4" x-data="{ show: false }" x-init="setTimeout(() => show = true, 100)">
@@ -589,12 +589,18 @@ new #[Layout('components.layouts.app')] class extends Component {
                 <div class="flex gap-3 pt-4 border-t border-[#9B9EA4]/20 dark:border-zinc-600">
                     <flux:spacer />
                     <flux:modal.close>
-                        <flux:button variant="ghost" wire:click="startNewIdea">
-                            Start New Idea
+                        <flux:button>
+                            {{ __('Cancel') }}
                         </flux:button>
                     </flux:modal.close>
                     <flux:modal.close>
-                        <flux:button>Cancel</flux:button>
+                        <flux:button
+                            variant="primary"
+                            wire:click="startNewIdea"
+                            class="rounded-lg bg-[#FFF200] dark:bg-yellow-400 px-4 py-3 text-sm font-semibold text-[#231F20] dark:text-zinc-900 shadow-lg hover:bg-[#FFF200]/90 dark:hover:bg-yellow-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFF200] dark:focus-visible:outline-yellow-400 transition-all duration-200 hover:shadow-xl"
+                        >
+                            {{ __('Start New Idea') }}
+                        </flux:button>
                     </flux:modal.close>
                 </div>
             </div>
