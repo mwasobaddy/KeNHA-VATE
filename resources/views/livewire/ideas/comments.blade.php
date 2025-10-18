@@ -74,10 +74,10 @@ new #[Layout('components.layouts.app')] class extends Component {
             ->topLevel()
             ->active()
             ->with([
-                'user:id,first_name,other_names',
+                'user:id,username,first_name,other_names',
                 'replies' => function ($query) {
                     $query->active()
-                          ->with('user:id,first_name,other_names')
+                          ->with('user:id,username,first_name,other_names')
                           ->orderBy('created_at', 'asc');
                 }
             ]);
@@ -334,7 +334,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 
             // Create reply content with tagging
             $taggedUser = $comment->user;
-            $replyContent = "@{$taggedUser->first_name} {$taggedUser->other_names} {$this->conversationReply}";
+            $replyContent = "@{$taggedUser->username} {$this->conversationReply}";
 
             app(\App\Services\CommentService::class)->createComment([
                 'user_id' => Auth::id(),
@@ -353,20 +353,18 @@ new #[Layout('components.layouts.app')] class extends Component {
     }
 
     /**
-     * Parse comment content and highlight tagged user names in blue
+     * Parse comment content and highlight tagged usernames in blue
      */
     public function parseCommentContent(string $content): string
     {
-        // Pattern to match @FirstName LastName format
-        $pattern = '/@([A-Za-z]+)\s+([A-Za-z]+)/';
+        // Pattern to match @username format (alphanumeric, underscore, dot, hyphen)
+        $pattern = '/@([a-zA-Z0-9_.-]+)/';
 
         return preg_replace_callback($pattern, function ($matches) {
-            $firstName = $matches[1];
-            $lastName = $matches[2];
-            $fullName = $firstName . ' ' . $lastName;
+            $username = $matches[1];
 
-            // Return the highlighted name
-            return '<span class="text-blue-600 dark:text-blue-400 font-semibold">@' . $fullName . '</span>';
+            // Return the highlighted username
+            return '<span class="text-blue-600 dark:text-blue-400 !font-semibold">@' . $username . '</span>';
         }, $content);
     }
 
@@ -1096,7 +1094,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                     <label class="block text-sm font-medium text-[#231F20] dark:text-white mb-2">
                                         {{ __('Your Reply') }}
                                         <span class="text-xs text-[#9B9EA4] dark:text-zinc-400 ml-2">
-                                            ({{ __('Will tag @') }}{{ $conversationComment->user->first_name }} {{ $conversationComment->user->other_names }})
+                                            ({{ __('Will tag @') }}{{ $conversationComment->user->username }})
                                         </span>
                                     </label>
                                     <flux:textarea

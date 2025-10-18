@@ -108,9 +108,9 @@ class Comment extends Model
     public static function getTopLevelCommentsForIdea(int $ideaId): \Illuminate\Database\Eloquent\Collection
     {
         return static::with([
-            'user:id,first_name,other_names',
+            'user:id,username,first_name,other_names',
             'replies' => function (HasMany $query) {
-                $query->with('user:id,first_name,other_names')
+                $query->with('user:id,username,first_name,other_names')
                       ->orderBy('created_at', 'asc')
                       ->where('comment_is_disabled', false);
             }
