@@ -30,14 +30,25 @@ new #[Layout('components.layouts.app')] class extends Component {
     public array $expandedReplies = [];
     public bool $showCommentModal = false;
 
+    // Conversation modal
+    public bool $showConversationModal = false;
+    public ?int $conversationCommentId = null;
+    public string $conversationReply = '';
+    public bool $conversationSubmitting = false;
+
     /**
-     * Mount the component with the idea slug
+     * Mount the component with the idea slug and optional comment ID
      */
-    public function mount(string $idea): void
+    public function mount(string $idea, ?string $comment = null): void
     {
         $ideaModel = Idea::where('slug', $idea)
             ->firstOrFail();
         $this->ideaId = $ideaModel->id;
+
+        // If comment ID is provided in URL, show conversation modal
+        if ($comment) {
+            $this->openConversationModal($comment);
+        }
     }
 
     /**
@@ -245,6 +256,109 @@ new #[Layout('components.layouts.app')] class extends Component {
         if (!$this->showCommentModal) {
             $this->newComment = '';
         }
+    }
+
+    /**
+     * Get the comment for the current conversation
+     */
+    public function getConversationComment()
+    {
+        if (!$this->conversationCommentId) {
+            return null;
+        }
+
+        return Comment::with(['user', 'replies.user'])
+            ->find($this->conversationCommentId);
+    }
+
+    /**
+     * Show conversation modal for a specific reply
+     */
+    public function openConversationModal($commentId): void
+    {
+        Log::info('openConversationModal called', [
+            'comment_id' => $commentId ?? 'null',
+            'idea_id' => $this->ideaId ?? 'null',
+        ]);
+
+        $commentId = (int) $commentId;
+
+        $comment = Comment::where('id', $commentId)
+            ->where('idea_id', $this->ideaId)
+            ->first();
+
+        Log::info('Comment found', ['exists' => $comment !== null]);
+
+        if (!$comment) {
+            session()->flash('error', 'Comment not found.');
+            return;
+        }
+
+        $this->conversationCommentId = $commentId;
+        $this->showConversationModal = true;
+
+        Log::info('Modal state set', [
+            'conversationCommentId' => $this->conversationCommentId,
+            'showConversationModal' => $this->showConversationModal,
+        ]);
+    }
+
+    /**
+     * Hide conversation modal
+     */
+    public function hideConversationModal(): void
+    {
+        $this->showConversationModal = false;
+        $this->conversationCommentId = null;
+        $this->conversationReply = '';
+
+        // Remove conversation parameter from URL
+        $this->dispatch('update-url', [
+            'url' => route('ideas.comments', ['idea' => $this->getIdea()->slug])
+        ]);
+    }
+
+    /**
+     * Add reply to conversation with tagging
+     */
+    public function addConversationReply(): void
+    {
+        $this->validate([
+            'conversationReply' => 'required|string|max:1000',
+        ]);
+
+        $this->conversationSubmitting = true;
+
+        try {
+            $comment = Comment::findOrFail($this->conversationCommentId);
+
+            // Create reply content with tagging
+            $taggedUser = $comment->user;
+            $replyContent = "@{$taggedUser->first_name} {$taggedUser->other_names} {$this->conversationReply}";
+
+            app(\App\Services\CommentService::class)->createComment([
+                'user_id' => Auth::id(),
+                'idea_id' => $this->ideaId,
+                'content' => $replyContent,
+                'parent_id' => $comment->parent_id, // Reply to the same parent as the original comment
+            ]);
+
+            $this->conversationReply = '';
+            session()->flash('success', 'Reply added to conversation!');
+        } catch (\Exception $e) {
+            session()->flash('error', 'Failed to add reply: ' . $e->getMessage());
+        }
+
+        $this->conversationSubmitting = false;
+    }
+
+    /**
+     * Test method to check if Livewire is working
+     */
+    public function testMethod(): void
+    {
+        \Log::info('Test method called successfully');
+        session()->flash('success', 'Test method called!');
     }
 };
 ?>
@@ -579,7 +693,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                     x-transition:enter="transition ease-out duration-500"
                     x-transition:enter-start="opacity-0 translate-y-4"
                     x-transition:enter-end="opacity-100 translate-y-0"
-                    class="group"
+                    class="hover:bg-zinc-50 dark:hover:bg-zinc-800/20 rounded-2xl p-4 sm:p-6 border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md transition-all duration-200 group"
                 >
                     <!-- Main Comment -->
                     <div class="flex gap-3">
@@ -723,12 +837,12 @@ new #[Layout('components.layouts.app')] class extends Component {
                                     <!-- View/Hide Replies Button -->
                                     <div class="ml-9">
                                         <flux:button
+                                            icon="{{ $isExpanded ? 'chevron-up' : 'chevron-down' }}"
                                             wire:click="toggleReplies({{ $comment->id }})"
                                             variant="ghost"
                                             size="sm"
                                             class="text-xs text-[#9B9EA4] hover:text-[#231F20] dark:text-zinc-400 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-zinc-800 transition-all duration-200"
                                         >
-                                            <flux:icon name="{{ $isExpanded ? 'chevron-up' : 'chevron-down' }}" class="w-3 h-3 mr-1" />
                                             {{ $isExpanded ? 'Hide replies' : 'View ' . $comment->replies->count() . ' ' . ($comment->replies->count() > 1 ? 'replies' : 'reply') }}
                                         </flux:button>
                                     </div>
@@ -776,7 +890,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                                             </div>
 
                                                             <!-- Reply Action Buttons -->
-                                                            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                                            <div class="flex items-center gap-1 opacity-100 transition-opacity duration-200">
                                                                 @if($reply->user_id !== Auth::id() && !$reply->read_at)
                                                                     <flux:button
                                                                         wire:click="markAsRead({{ $reply->id }})"
@@ -787,6 +901,14 @@ new #[Layout('components.layouts.app')] class extends Component {
                                                                         <flux:icon name="eye" class="w-2.5 h-2.5" />
                                                                     </flux:button>
                                                                 @endif
+
+                                                                <button
+                                                                    wire:click="openConversationModal({{ $reply->id }})"
+                                                                    type="button"
+                                                                    class="p-1 h-5 w-5 text-[#9B9EA4] hover:text-purple-600 dark:text-zinc-400 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all duration-200 rounded"
+                                                                >
+                                                                    <flux:icon name="chat-bubble-left-right" class="w-2.5 h-2.5" />
+                                                                </button>
 
                                                                 @if($reply->user_id === Auth::id())
                                                                     <flux:button
@@ -854,6 +976,153 @@ new #[Layout('components.layouts.app')] class extends Component {
                     </div>
                 </div>
             @endforelse
+        </div>
+
+        <!-- ============================================
+            CONVERSATION MODAL - For replying to specific comments
+            ============================================ -->
+        <div
+            x-data="{ show: @entangle('showConversationModal') }"
+            x-show="show"
+            x-on:keydown.escape.window="show = false; $wire.hideConversationModal()"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            class="fixed inset-0 z-50 overflow-y-auto"
+            style="display: none;"
+            x-cloak
+        >
+            <!-- Backdrop -->
+            <div
+                x-show="show"
+                x-transition:enter="transition ease-out duration-300"
+                x-transition:enter-start="opacity-0"
+                x-transition:enter-end="opacity-100"
+                class="fixed inset-0 bg-black/50 backdrop-blur-sm"
+                @click="show = false; $wire.hideConversationModal()"
+            ></div>
+
+            <!-- Modal Container -->
+            <div class="flex min-h-screen items-center justify-center p-0 sm:p-4">
+                <div
+                    x-show="show"
+                    x-transition:enter="transition ease-out duration-300"
+                    x-transition:enter-start="opacity-0 translate-y-8 sm:scale-95"
+                    x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                    x-transition:leave="transition ease-in duration-200"
+                    x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                    x-transition:leave-end="opacity-0 translate-y-8 sm:scale-95"
+                    class="relative w-full sm:max-w-2xl bg-white dark:bg-zinc-800 rounded-t-3xl sm:rounded-2xl shadow-2xl border-t sm:border border-zinc-200 dark:border-zinc-700 overflow-hidden max-h-[90vh] sm:max-h-[85vh] flex flex-col"
+                    @click.stop
+                >
+                    @if($this->getConversationComment())
+                        <!-- Modal Header -->
+                        <div class="flex items-center justify-between p-6 border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FFF200] to-yellow-300 dark:from-yellow-400 dark:to-yellow-500 flex items-center justify-center shadow-md">
+                                    <flux:icon name="chat-bubble-left-right" class="w-5 h-5 text-[#231F20] dark:text-zinc-900" />
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-bold text-[#231F20] dark:text-white">Reply to Conversation</h3>
+                                    <p class="text-sm text-[#9B9EA4] dark:text-zinc-400">Continue the discussion</p>
+                                </div>
+                            </div>
+                            <button
+                                wire:click="hideConversationModal"
+                                class="p-2 rounded-lg text-[#9B9EA4] hover:text-[#231F20] dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-all duration-200"
+                            >
+                                <flux:icon name="x-mark" class="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <!-- Modal Body -->
+                        <div class="p-6 overflow-y-auto flex-1">
+                            <!-- Original Comment Being Replied To -->
+                            @php
+                                $conversationComment = $this->getConversationComment();
+                            @endphp
+                            <div class="mb-6 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                                <div class="flex items-start gap-3">
+                                    <!-- Avatar -->
+                                    <div class="flex-shrink-0">
+                                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#FFF200] via-yellow-300 to-yellow-400 dark:from-yellow-400 dark:via-yellow-500 dark:to-yellow-600 flex items-center justify-center shadow-sm">
+                                            <span class="text-xs font-bold text-[#231F20] dark:text-zinc-900">
+                                                {{ substr($conversationComment->user->first_name, 0, 1) }}{{ substr($conversationComment->user->other_names, 0, 1) }}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Comment Content -->
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <span class="font-semibold text-sm text-[#231F20] dark:text-white">
+                                                {{ $conversationComment->user->first_name }} {{ $conversationComment->user->other_names }}
+                                            </span>
+                                            <span class="text-xs text-[#9B9EA4] dark:text-zinc-400">
+                                                {{ $conversationComment->created_at->diffForHumans() }}
+                                            </span>
+                                        </div>
+                                        <p class="text-sm text-[#231F20] dark:text-white leading-relaxed">
+                                            {{ $conversationComment->content }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Reply Form -->
+                            <form wire:submit="addConversationReply" class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-[#231F20] dark:text-white mb-2">
+                                        {{ __('Your Reply') }}
+                                        <span class="text-xs text-[#9B9EA4] dark:text-zinc-400 ml-2">
+                                            ({{ __('Will tag @') }}{{ $conversationComment->user->first_name }} {{ $conversationComment->user->other_names }})
+                                        </span>
+                                    </label>
+                                    <flux:textarea
+                                        wire:model="conversationReply"
+                                        placeholder="{{ __('Write your reply...') }}"
+                                        rows="4"
+                                        class="w-full rounded-xl border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50 text-[#231F20] dark:text-white placeholder:text-[#9B9EA4] dark:placeholder:text-zinc-500 focus:border-[#FFF200] dark:focus:border-yellow-400 focus:ring-2 focus:ring-[#FFF200]/20 dark:focus:ring-yellow-400/20 transition-all duration-200 resize-none"
+                                    />
+                                    @error('conversationReply')
+                                        <p class="mt-2 text-sm text-red-600 dark:text-red-400 flex items-center gap-1.5">
+                                            <flux:icon name="exclamation-circle" class="w-4 h-4" />
+                                            {{ $message }}
+                                        </p>
+                                    @enderror
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="flex justify-end gap-3 pt-4">
+                                    <flux:button
+                                        type="button"
+                                        wire:click="hideConversationModal"
+                                        variant="ghost"
+                                        size="sm"
+                                        class="rounded-lg px-4 py-2 text-[#9B9EA4] hover:text-[#231F20] dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-all duration-200"
+                                    >
+                                        Cancel
+                                    </flux:button>
+                                    <flux:button
+                                        type="submit"
+                                        wire:loading.attr="disabled"
+                                        :disabled="$conversationSubmitting"
+                                        variant="primary"
+                                        size="sm"
+                                        class="rounded-lg bg-[#FFF200] hover:bg-[#FFF200]/90 dark:bg-yellow-400 dark:hover:bg-yellow-300 px-6 py-2 text-[#231F20] dark:text-zinc-900 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <flux:icon name="paper-airplane" class="w-4 h-4 mr-2" />
+                                        Reply
+                                    </flux:button>
+                                </div>
+                            </form>
+                        </div>
+                    @endif
+                </div>
+            </div>
         </div>
 
         <!-- ============================================
@@ -981,6 +1250,7 @@ new #[Layout('components.layouts.app')] class extends Component {
         /* Hover lift effect for cards */
         .group:hover {
             transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
 
         /* Loading state pulse animation */
@@ -1213,6 +1483,11 @@ new #[Layout('components.layouts.app')] class extends Component {
                     });
                 }, 100);
             });
+
+            // Handle URL updates for conversation modal
+            Livewire.on('update-url', (data) => {
+                window.history.replaceState({}, '', data.url);
+            });
         });
 
         // Enhanced keyboard navigation
@@ -1224,4 +1499,5 @@ new #[Layout('components.layouts.app')] class extends Component {
             }
         });
     </script>
+
 </div>
