@@ -41,14 +41,14 @@
         @endif
 
         {{-- Page Numbers --}}
-        @foreach($paginator->getUrlRange(max(5, $currentPage - 2), min($lastPage, $currentPage + 2)) as $page)
-            @if($page == $currentPage)
+        @foreach($paginator->getUrlRange(max(1, $currentPage - 2), min($lastPage, $currentPage + 2)) as $pageNum => $url)
+            @if($pageNum == $currentPage)
                 <span class="relative inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-[#2563EB] border border-[#2563EB] cursor-default">
-                    {{ $page }}
+                    {{ $pageNum }}
                 </span>
             @else
-                <a href="{{ $paginator->url($page) }}" wire:navigate class="relative inline-flex items-center px-4 py-2 text-sm font-medium text-[#231F20] dark:text-white bg-white dark:bg-zinc-800 border border-[#E6E8EB] dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors duration-150">
-                    {{ $page }}
+                <a href="{{ $url }}" wire:navigate class="relative inline-flex items-center px-4 py-2 text-sm font-medium text-[#231F20] dark:text-white bg-white dark:bg-zinc-800 border border-[#E6E8EB] dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors duration-150">
+                    {{ $pageNum }}
                 </a>
             @endif
         @endforeach
