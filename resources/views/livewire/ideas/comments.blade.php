@@ -13,7 +13,6 @@ use App\Services\CommentService;
 new #[Layout('components.layouts.app')] class extends Component {
     use WithPagination;
 
-    public CommentService $commentService;
     public int $ideaId;
     public string $newComment = '';
     public ?int $replyTo = null;
@@ -36,7 +35,6 @@ new #[Layout('components.layouts.app')] class extends Component {
      */
     public function mount(string $idea): void
     {
-        $this->commentService = app(CommentService::class);
         $ideaModel = Idea::where('slug', $idea)
             ->firstOrFail();
         $this->ideaId = $ideaModel->id;
@@ -108,7 +106,7 @@ new #[Layout('components.layouts.app')] class extends Component {
         $this->submitting = true;
 
         try {
-            $this->commentService->createComment([
+            app(\App\Services\CommentService::class)->createComment([
                 'user_id' => Auth::id(),
                 'idea_id' => $this->ideaId,
                 'content' => $this->newComment,
@@ -157,7 +155,7 @@ new #[Layout('components.layouts.app')] class extends Component {
         $this->submitting = true;
 
         try {
-            $this->commentService->createComment([
+            app(\App\Services\CommentService::class)->createComment([
                 'user_id' => Auth::id(),
                 'idea_id' => $this->ideaId,
                 'content' => $this->replyContent,
@@ -197,7 +195,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                          ->first();
 
         if ($comment) {
-            $this->commentService->deleteComment($comment);
+            app(\App\Services\CommentService::class)->deleteComment($comment);
             session()->flash('success', 'Comment deleted successfully!');
         }
     }    /**
