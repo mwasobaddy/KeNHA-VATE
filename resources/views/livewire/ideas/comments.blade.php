@@ -710,8 +710,8 @@ new #[Layout('components.layouts.app')] class extends Component {
                         <div class="flex-1 min-w-0">
                             <div class="bg-gray-50 dark:bg-zinc-800 rounded-2xl px-4 py-3 {{ $isCurrentUser ? 'bg-[#FFF200]/10 dark:bg-yellow-400/10' : '' }}">
                                 <!-- Username and Content -->
-                                <div class="flex items-start gap-2 mb-1">
-                                    <span class="font-semibold text-sm text-[#231F20] dark:text-white">
+                                <div class="flex flex-col items-start gap-2 mb-1">
+                                    <span class="!font-semibold text-sm text-blue-600 dark:text-blue-400">
                                         {{ $isCurrentUser ? 'You' : ($comment->user->first_name . ' ' . $comment->user->other_names) }}
                                     </span>
                                     <span class="text-sm text-[#231F20] dark:text-white leading-relaxed break-words flex-1">
@@ -751,7 +751,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                             size="sm"
                                             class="p-1 h-6 w-6 text-[#9B9EA4] hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200"
                                         >
-                                            <span class="text-xs font-medium">Reply</span>
+                                            <span class="text-xs font-medium">{{ __('Reply') }}</span>
                                         </flux:button>
 
                                         @if($comment->user_id === Auth::id())
@@ -867,8 +867,8 @@ new #[Layout('components.layouts.app')] class extends Component {
                                                 <div class="flex-1 min-w-0">
                                                     <div class="bg-gray-50 dark:bg-zinc-800 rounded-xl px-3 py-2 {{ $isReplyCurrentUser ? 'bg-[#FFF200]/10 dark:bg-yellow-400/10' : '' }}">
                                                         <!-- Reply Username and Content -->
-                                                        <div class="flex items-start gap-2 mb-1">
-                                                            <span class="font-semibold text-xs text-[#231F20] dark:text-white">
+                                                        <div class="flex flex-col items-start gap-2 mb-1">
+                                                            <span class="!font-semibold text-sm text-blue-600 dark:text-blue-400">
                                                                 {{ $isReplyCurrentUser ? 'You' : ($reply->user->first_name . ' ' . $reply->user->other_names) }}
                                                             </span>
                                                             <span class="text-xs text-[#231F20] dark:text-white leading-relaxed break-words flex-1">
@@ -884,7 +884,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                                                 </span>
                                                                 @if($reply->read_at)
                                                                     <span class="text-xs text-green-600 dark:text-green-400 font-medium">
-                                                                        Read
+                                                                        {{ __('Read') }}
                                                                     </span>
                                                                 @endif
                                                             </div>
