@@ -433,14 +433,14 @@ new #[Layout('components.layouts.app')] class extends Component {
 ?>
 
 <!-- Main Container with improved spacing and modern backdrop -->
-<div class="min-h-screen bg-white dark:bg-zinc-900">
-    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+<div class="backdrop-blur-lg">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 border border-zinc-200 dark:border-yellow-400 rounded-3xl bg-gradient-to-br from-[#F8EBD5]/20 via-white to-[#F8EBD5] dark:from-zinc-900/20 dark:via-zinc-800 dark:to-zinc-900 border">
         
         <!-- ============================================
              HERO SECTION - Modern header with icon
              ============================================ -->
         <div class="mb-8 sm:mb-12">
-            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
+            <div class="flex flex-row items-start sm:items-center gap-4 sm:gap-6">
                 <!-- Animated Icon Badge -->
                 <div 
                     x-data="{ show: false }" 
@@ -613,13 +613,13 @@ new #[Layout('components.layouts.app')] class extends Component {
 
                             <!-- Add Comment Button - Mobile -->
                             <flux:button
+                                icon="plus"
                                 wire:click="toggleCommentModal"
                                 variant="primary"
                                 size="sm"
                                 class="sm:hidden rounded-lg bg-[#FFF200] hover:bg-[#FFF200]/90 dark:bg-yellow-400 dark:hover:bg-yellow-300 px-4 py-2 text-[#231F20] dark:text-zinc-900 font-semibold shadow-md hover:shadow-lg transition-all duration-200"
                             >
-                                <flux:icon name="plus" class="w-4 h-4 mr-1.5" />
-                                Add
+                                {{ __('Add') }}
                             </flux:button>
 
                             <!-- Reset Filters -->
@@ -686,7 +686,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                 <flux:icon name="chat-bubble-left" class="w-5 h-5 text-[#231F20] dark:text-zinc-900" />
                             </div>
                             <h3 class="text-lg sm:text-xl font-bold text-[#231F20] dark:text-white">
-                                Add Comment
+                                {{ __('Add Comment') }}
                             </h3>
                         </div>
                         <button
@@ -723,13 +723,13 @@ new #[Layout('components.layouts.app')] class extends Component {
                                 <flux:button
                                     type="button"
                                     @click="show = false; $wire.set('showCommentModal', false)"
-                                    variant="ghost"
                                     size="sm"
                                     class="rounded-lg px-4 py-2 text-[#9B9EA4] hover:text-[#231F20] dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-all duration-200"
                                 >
-                                    Cancel
+                                    {{ __('Cancel') }}
                                 </flux:button>
                                 <flux:button
+                                    icon="paper-airplane"
                                     type="submit"
                                     wire:loading.attr="disabled"
                                     :disabled="$submitting"
@@ -737,8 +737,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                     size="sm"
                                     class="rounded-lg bg-[#FFF200] hover:bg-[#FFF200]/90 dark:bg-yellow-400 dark:hover:bg-yellow-300 px-6 py-2 text-[#231F20] dark:text-zinc-900 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    <flux:icon name="paper-airplane" class="w-4 h-4 mr-2" />
-                                    Post Comment
+                                    {{ __('Post Comment') }}
                                 </flux:button>
                             </div>
                         </form>
@@ -800,21 +799,18 @@ new #[Layout('components.layouts.app')] class extends Component {
                                             <div class="flex justify-end gap-2">
                                                 <flux:button
                                                     wire:click="cancelEditing"
-                                                    variant="ghost"
+                                                    variant="outline"
                                                     size="sm"
-                                                    class="px-3 py-1 text-[#9B9EA4] hover:text-[#231F20] dark:text-zinc-400 dark:hover:text-white"
                                                 >
-                                                    Cancel
+                                                    {{ __('Cancel') }}
                                                 </flux:button>
                                                 <flux:button
                                                     type="submit"
                                                     variant="primary"
                                                     size="sm"
                                                     class="px-3 py-1 bg-[#FFF200] hover:bg-[#FFF200]/90 dark:bg-yellow-400 dark:hover:bg-yellow-300 text-[#231F20] dark:text-zinc-900"
-                                                    wire:loading.attr="disabled"
                                                 >
-                                                    <span wire:loading.remove>Save</span>
-                                                    <span wire:loading>Saving...</span>
+                                                    {{ __('Save') }}
                                                 </flux:button>
                                             </div>
                                         </form>
@@ -834,64 +830,58 @@ new #[Layout('components.layouts.app')] class extends Component {
                                     </div>
 
                                     <!-- Action Buttons -->
-                                    <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                    <div class="flex items-center gap-2 duration-200">
                                         <!-- Like Button -->
-                                        <flux:button
-                                            wire:click="toggleLike({{ $comment->id }})"
-                                            variant="ghost"
-                                            size="sm"
-                                            class="p-1 h-6 w-6 {{ $comment->isLikedBy(Auth::user()->email) ? 'text-red-600 dark:text-red-400' : 'text-[#9B9EA4] hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400' }} hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
-                                        >
-                                            <flux:icon name="heart" class="w-3 h-3 {{ $comment->isLikedBy(Auth::user()->email) ? 'fill-current' : '' }}" />
-                                        </flux:button>
+                                        <div class="flex items-center">
+                                            <flux:button
+                                                icon="heart"
+                                                icon:variant="{{ $comment->isLikedBy(Auth::user()->email) ? 'solid' : 'outline' }}"
+                                                wire:click="toggleLike({{ $comment->id }})"
+                                                variant="ghost"
+                                                size="sm"
+                                                class="{{ $comment->isLikedBy(Auth::user()->email) ? '!text-red-600' : '!text-red-600' }} hover:!bg-transparent transition-all duration-200"
+                                            >
+                                            </flux:button>
 
-                                        @if($comment->likes_count > 0)
-                                            <span class="text-xs text-[#9B9EA4] dark:text-zinc-400">
-                                                {{ $comment->likes_count }}
+                                            <span class="text-sm text-[#9B9EA4] dark:text-zinc-400">
+                                                {{ $comment->likes_count ?? 0 }}
                                             </span>
-                                        @endif
+                                        </div>
 
                                         @if($comment->user_id !== Auth::id())
                                             <flux:button
+                                                icon="arrow-uturn-left"
                                                 wire:click="showReply({{ $comment->id }})"
                                                 variant="ghost"
                                                 size="sm"
-                                                class="p-1 h-6 w-6 text-[#9B9EA4] hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200"
+                                                class="!text-blue-600 hover:!text-blue-400 hover:!bg-transparent transition-all duration-200"
                                             >
-                                                <span class="text-xs font-medium">{{ __('Reply') }}</span>
+                                                <span class="text-sm font-semibold">{{ __('Reply') }}</span>
                                             </flux:button>
                                         @endif
 
                                         @if($comment->user_id === Auth::id())
-                                            @if($editingComment && $editingCommentId === $comment->id)
+                                            <flux:tooltip content="Edit Comment" placement="bottom">
                                                 <flux:button
-                                                    wire:click="cancelEditing"
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    class="p-1 h-6 w-6 text-[#9B9EA4] hover:text-gray-600 dark:text-zinc-400 dark:hover:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900/20 transition-all duration-200"
-                                                >
-                                                    <flux:icon name="x-mark" class="w-3 h-3" />
-                                                </flux:button>
-                                            @else
-                                                <flux:button
+                                                    icon="pencil-square"
                                                     wire:click="startEditing({{ $comment->id }})"
                                                     variant="ghost"
                                                     size="sm"
-                                                    class="p-1 h-6 w-6 text-[#9B9EA4] hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200"
+                                                    class="!text-green-600"
                                                 >
-                                                    <flux:icon name="pencil" class="w-3 h-3" />
                                                 </flux:button>
-                                            @endif
-
-                                            <flux:button
-                                                wire:click="deleteComment({{ $comment->id }})"
-                                                wire:confirm="Are you sure you want to delete this comment?"
-                                                variant="ghost"
-                                                size="sm"
-                                                class="p-1 h-6 w-6 text-[#9B9EA4] hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
-                                            >
-                                                <flux:icon name="trash" class="w-3 h-3" />
-                                            </flux:button>
+                                            </flux:tooltip>
+                                            <flux:tooltip content="Hide Comment" placement="bottom">
+                                                <flux:button
+                                                    icon="trash"
+                                                    wire:click="deleteComment({{ $comment->id }})"
+                                                    wire:confirm="Are you sure you want to delete this comment?"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    class="!text-red-600"
+                                                    >
+                                                </flux:button>
+                                            </flux:tooltip>
                                         @endif
                                     </div>
                                 </div>
@@ -927,11 +917,9 @@ new #[Layout('components.layouts.app')] class extends Component {
                                                     <flux:button
                                                         type="button"
                                                         wire:click="hideReply"
-                                                        variant="ghost"
                                                         size="sm"
-                                                        class="px-3 py-1 text-xs text-[#9B9EA4] hover:text-[#231F20] dark:text-zinc-400 dark:hover:text-white"
                                                     >
-                                                        Cancel
+                                                        {{ __('Cancel') }}
                                                     </flux:button>
                                                     <flux:button
                                                         type="submit"
@@ -941,7 +929,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                                         size="sm"
                                                         class="px-3 py-1 text-xs bg-[#FFF200] hover:bg-[#FFF200]/90 dark:bg-yellow-400 dark:hover:bg-yellow-300 text-[#231F20] dark:text-zinc-900 font-semibold"
                                                     >
-                                                        Reply
+                                                        {{ __('Reply') }}
                                                     </flux:button>
                                                 </div>
                                             </form>
@@ -1026,11 +1014,9 @@ new #[Layout('components.layouts.app')] class extends Component {
                                                                             type="submit"
                                                                             variant="primary"
                                                                             size="sm"
-                                                                            class="px-2 py-1 text-xs bg-[#FFF200] hover:bg-[#FFF200]/90 dark:bg-yellow-400 dark:hover:bg-yellow-300 text-[#231F20] dark:text-zinc-900"
-                                                                            wire:loading.attr="disabled"
+                                                                            class="px-3 py-1 bg-[#FFF200] hover:bg-[#FFF200]/90 dark:bg-yellow-400 dark:hover:bg-yellow-300 text-[#231F20] dark:text-zinc-900"
                                                                         >
-                                                                            <span wire:loading.remove>Save</span>
-                                                                            <span wire:loading>Saving...</span>
+                                                                            {{ __('Save') }}
                                                                         </flux:button>
                                                                     </div>
                                                                 </form>
@@ -1051,62 +1037,59 @@ new #[Layout('components.layouts.app')] class extends Component {
 
                                                             <!-- Reply Action Buttons -->
                                                             <div class="flex items-center gap-1 opacity-100 transition-opacity duration-200">
-                                                                <!-- Like Button for Reply -->
-                                                                <flux:button
-                                                                    wire:click="toggleLike({{ $reply->id }})"
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    class="p-1 h-5 w-5 {{ $reply->isLikedBy(Auth::user()->email) ? 'text-red-600 dark:text-red-400' : 'text-[#9B9EA4] hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400' }} hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
-                                                                >
-                                                                    <flux:icon name="heart" class="w-2.5 h-2.5 {{ $reply->isLikedBy(Auth::user()->email) ? 'fill-current' : '' }}" />
-                                                                </flux:button>
+                                                                
+                                                                <!-- Like Button -->
+                                                                <div class="flex items-center">
+                                                                    <flux:button
+                                                                        icon="heart"
+                                                                        icon:variant="{{ $reply->isLikedBy(Auth::user()->email) ? 'solid' : 'outline' }}"
+                                                                        wire:click="toggleLike({{ $reply->id }})"
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        class="{{ $reply->isLikedBy(Auth::user()->email) ? '!text-red-600' : '!text-red-600' }} hover:!bg-transparent transition-all duration-200"
+                                                                    >
+                                                                    </flux:button>
 
-                                                                @if($reply->likes_count > 0)
-                                                                    <span class="text-xs text-[#9B9EA4] dark:text-zinc-400">
-                                                                        {{ $reply->likes_count }}
+                                                                    <span class="text-sm text-[#9B9EA4] dark:text-zinc-400">
+                                                                        {{ $reply->likes_count ?? 0 }}
                                                                     </span>
-                                                                @endif
+                                                                </div>
 
                                                                 @if($reply->user_id !== Auth::id())
-                                                                    <button
+                                                                    <flux:button
+                                                                        icon="arrow-uturn-left"
                                                                         wire:click="openConversationModal({{ $reply->id }})"
-                                                                        type="button"
-                                                                        class="p-1 h-5 w-5 text-[#9B9EA4] hover:text-purple-600 dark:text-zinc-400 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all duration-200 rounded"
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        class="!text-blue-600 hover:!text-blue-400 hover:!bg-transparent transition-all duration-200"
                                                                     >
-                                                                        <flux:icon name="chat-bubble-left-right" class="w-2.5 h-2.5" />
-                                                                    </button>
+                                                                        <span class="text-sm font-semibold">{{ __('Reply') }}</span>
+                                                                    </flux:button>
                                                                 @endif
 
                                                                 @if($reply->user_id === Auth::id())
-                                                                    @if($editingComment && $editingCommentId === $reply->id)
+                                                                    <flux:tooltip content="Edit Reply" placement="bottom">
                                                                         <flux:button
-                                                                            wire:click="cancelEditing"
-                                                                            variant="ghost"
-                                                                            size="sm"
-                                                                            class="p-1 h-5 w-5 text-[#9B9EA4] hover:text-gray-600 dark:text-zinc-400 dark:hover:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900/20 transition-all duration-200"
-                                                                        >
-                                                                            <flux:icon name="x-mark" class="w-2.5 h-2.5" />
-                                                                        </flux:button>
-                                                                    @else
-                                                                        <flux:button
+                                                                            icon="pencil-square"
                                                                             wire:click="startEditing({{ $reply->id }})"
                                                                             variant="ghost"
                                                                             size="sm"
-                                                                            class="p-1 h-5 w-5 text-[#9B9EA4] hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200"
+                                                                            class="!text-green-600"
                                                                         >
-                                                                            <flux:icon name="pencil" class="w-2.5 h-2.5" />
                                                                         </flux:button>
-                                                                    @endif
+                                                                    </flux:tooltip>
 
-                                                                    <flux:button
-                                                                        wire:click="deleteComment({{ $reply->id }})"
-                                                                        wire:confirm="Are you sure you want to delete this reply?"
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        class="p-1 h-5 w-5 text-[#9B9EA4] hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
-                                                                    >
-                                                                        <flux:icon name="trash" class="w-2.5 h-2.5" />
-                                                                    </flux:button>
+                                                                    <flux:tooltip content="Hide Comment" placement="bottom">
+                                                                        <flux:button
+                                                                            icon="trash"
+                                                                            wire:click="deleteComment({{ $reply->id }})"
+                                                                            wire:confirm="Are you sure you want to delete this comment?"
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            class="!text-red-600"
+                                                                            >
+                                                                        </flux:button>
+                                                                    </flux:tooltip>
                                                                 @endif
                                                             </div>
                                                         </div>
@@ -1588,32 +1571,6 @@ new #[Layout('components.layouts.app')] class extends Component {
 
         .comment-reply-btn:hover {
             color: #0095f6;
-        }
-
-        .replies-thread {
-            border-left: 2px solid #e1e5e9;
-            margin-left: 20px;
-            padding-left: 16px;
-            position: relative;
-        }
-
-        .dark .replies-thread {
-            border-left-color: rgb(63 63 70);
-        }
-
-        .replies-thread::before {
-            content: '';
-            position: absolute;
-            left: -6px;
-            top: 0;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #e1e5e9;
-        }
-
-        .dark .replies-thread::before {
-            background: rgb(63 63 70);
         }
 
         /* Mobile optimizations */
