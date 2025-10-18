@@ -405,6 +405,7 @@ new #[Layout('components.layouts.app')] class extends Component {
             ]);
 
             $this->conversationReply = '';
+            $this->showConversationModal = false;
             session()->flash('success', 'Reply added to conversation!');
         } catch (\Exception $e) {
             session()->flash('error', 'Failed to add reply: ' . $e->getMessage());
@@ -850,14 +851,16 @@ new #[Layout('components.layouts.app')] class extends Component {
                                             </span>
                                         @endif
 
-                                        <flux:button
-                                            wire:click="showReply({{ $comment->id }})"
-                                            variant="ghost"
-                                            size="sm"
-                                            class="p-1 h-6 w-6 text-[#9B9EA4] hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200"
-                                        >
-                                            <span class="text-xs font-medium">{{ __('Reply') }}</span>
-                                        </flux:button>
+                                        @if($comment->user_id !== Auth::id())
+                                            <flux:button
+                                                wire:click="showReply({{ $comment->id }})"
+                                                variant="ghost"
+                                                size="sm"
+                                                class="p-1 h-6 w-6 text-[#9B9EA4] hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200"
+                                            >
+                                                <span class="text-xs font-medium">{{ __('Reply') }}</span>
+                                            </flux:button>
+                                        @endif
 
                                         @if($comment->user_id === Auth::id())
                                             @if($editingComment && $editingCommentId === $comment->id)
@@ -1064,13 +1067,15 @@ new #[Layout('components.layouts.app')] class extends Component {
                                                                     </span>
                                                                 @endif
 
-                                                                <button
-                                                                    wire:click="openConversationModal({{ $reply->id }})"
-                                                                    type="button"
-                                                                    class="p-1 h-5 w-5 text-[#9B9EA4] hover:text-purple-600 dark:text-zinc-400 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all duration-200 rounded"
-                                                                >
-                                                                    <flux:icon name="chat-bubble-left-right" class="w-2.5 h-2.5" />
-                                                                </button>
+                                                                @if($reply->user_id !== Auth::id())
+                                                                    <button
+                                                                        wire:click="openConversationModal({{ $reply->id }})"
+                                                                        type="button"
+                                                                        class="p-1 h-5 w-5 text-[#9B9EA4] hover:text-purple-600 dark:text-zinc-400 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all duration-200 rounded"
+                                                                    >
+                                                                        <flux:icon name="chat-bubble-left-right" class="w-2.5 h-2.5" />
+                                                                    </button>
+                                                                @endif
 
                                                                 @if($reply->user_id === Auth::id())
                                                                     @if($editingComment && $editingCommentId === $reply->id)
@@ -1208,8 +1213,8 @@ new #[Layout('components.layouts.app')] class extends Component {
                                     <flux:icon name="chat-bubble-left-right" class="w-5 h-5 text-[#231F20] dark:text-zinc-900" />
                                 </div>
                                 <div>
-                                    <h3 class="text-lg font-bold text-[#231F20] dark:text-white">Reply to Conversation</h3>
-                                    <p class="text-sm text-[#9B9EA4] dark:text-zinc-400">Continue the discussion</p>
+                                    <h3 class="text-lg font-bold text-[#231F20] dark:text-white">{{ __('Reply to Conversation') }}</h3>
+                                    <p class="text-sm text-[#9B9EA4] dark:text-zinc-400">{{ __('Continue the discussion') }}</p>
                                 </div>
                             </div>
                             <button
@@ -1286,9 +1291,10 @@ new #[Layout('components.layouts.app')] class extends Component {
                                         size="sm"
                                         class="rounded-lg px-4 py-2 text-[#9B9EA4] hover:text-[#231F20] dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-all duration-200"
                                     >
-                                        Cancel
+                                        {{ __('Cancel') }}
                                     </flux:button>
                                     <flux:button
+                                        icon="paper-airplane"
                                         type="submit"
                                         wire:loading.attr="disabled"
                                         :disabled="$conversationSubmitting"
@@ -1296,8 +1302,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                         size="sm"
                                         class="rounded-lg bg-[#FFF200] hover:bg-[#FFF200]/90 dark:bg-yellow-400 dark:hover:bg-yellow-300 px-6 py-2 text-[#231F20] dark:text-zinc-900 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        <flux:icon name="paper-airplane" class="w-4 h-4 mr-2" />
-                                        Reply
+                                        {{ __('Reply') }}
                                     </flux:button>
                                 </div>
                             </form>
