@@ -36,6 +36,12 @@ new #[Layout('components.layouts.app')] class extends Component {
     public string $conversationReply = '';
     public bool $conversationSubmitting = false;
 
+    // Edit functionality
+    public bool $editingComment = false;
+    public ?int $editingCommentId = null;
+    public string $editingContent = '';
+    public bool $editingSubmitting = false;
+
     /**
      * Mount the component with the idea slug and optional comment ID
      */
@@ -93,12 +99,13 @@ new #[Layout('components.layouts.app')] class extends Component {
             });
         }
 
-        // Apply status filter (simplified - would need read status tracking)
-        if ($this->filterStatus === 'read') {
-            // For now, skip read status filtering as it requires additional implementation
-            // $query->whereNotNull('read_at');
-        } elseif ($this->filterStatus === 'unread') {
-            // $query->whereNull('read_at');
+        // Apply status filter
+        if ($this->filterStatus === 'popular') {
+            $query->orderBy('likes_count', 'desc');
+        } elseif ($this->filterStatus === 'recent') {
+            $query->orderBy('created_at', 'desc');
+        } else {
+            $query->orderBy('created_at', 'desc');
         }
 
         return $query->orderBy('created_at', 'desc')
@@ -183,17 +190,82 @@ new #[Layout('components.layouts.app')] class extends Component {
     }
 
     /**
-     * Mark a comment as read
+     * Toggle like for a comment
      */
-    public function markAsRead(int $commentId): void
+    public function toggleLike(int $commentId): void
     {
         $comment = Comment::where('id', $commentId)
                          ->where('idea_id', $this->ideaId)
                          ->first();
 
-        if ($comment && $comment->user_id !== Auth::id()) {
-            $comment->update(['read_at' => now()]);
+        if ($comment) {
+            $userEmail = Auth::user()->email;
+            $isLiked = $comment->toggleLike($userEmail);
+
+            // Optional: Send notification when someone likes a comment
+            if ($isLiked && $comment->user_id !== Auth::id()) {
+                app(\App\Services\NotificationService::class)->notify(
+                    $comment->user,
+                    'info',
+                    'Comment Liked',
+                    Auth::user()->first_name . ' ' . Auth::user()->other_names . ' liked your comment.'
+                );
+            }
         }
+    }
+
+    /**
+     * Start editing a comment
+     */
+    public function startEditing(int $commentId): void
+    {
+        $comment = Comment::where('id', $commentId)
+                         ->where('user_id', Auth::id())
+                         ->first();
+
+        if ($comment) {
+            $this->editingComment = true;
+            $this->editingCommentId = $commentId;
+            $this->editingContent = $comment->content;
+        }
+    }
+
+    /**
+     * Cancel editing
+     */
+    public function cancelEditing(): void
+    {
+        $this->editingComment = false;
+        $this->editingCommentId = null;
+        $this->editingContent = '';
+    }
+
+    /**
+     * Update a comment
+     */
+    public function updateComment(): void
+    {
+        $this->validate([
+            'editingContent' => 'required|string|max:1000',
+        ]);
+
+        $this->editingSubmitting = true;
+
+        try {
+            $comment = Comment::where('id', $this->editingCommentId)
+                             ->where('user_id', Auth::id())
+                             ->first();
+
+            if ($comment) {
+                $comment->update(['content' => $this->editingContent]);
+                $this->cancelEditing();
+                session()->flash('success', 'Comment updated successfully!');
+            }
+        } catch (\Exception $e) {
+            session()->flash('error', 'Failed to update comment: ' . $e->getMessage());
+        }
+
+        $this->editingSubmitting = false;
     }
 
     /**
@@ -276,18 +348,12 @@ new #[Layout('components.layouts.app')] class extends Component {
      */
     public function openConversationModal($commentId): void
     {
-        Log::info('openConversationModal called', [
-            'comment_id' => $commentId ?? 'null',
-            'idea_id' => $this->ideaId ?? 'null',
-        ]);
 
         $commentId = (int) $commentId;
 
         $comment = Comment::where('id', $commentId)
             ->where('idea_id', $this->ideaId)
             ->first();
-
-        Log::info('Comment found', ['exists' => $comment !== null]);
 
         if (!$comment) {
             session()->flash('error', 'Comment not found.');
@@ -296,11 +362,6 @@ new #[Layout('components.layouts.app')] class extends Component {
 
         $this->conversationCommentId = $commentId;
         $this->showConversationModal = true;
-
-        Log::info('Modal state set', [
-            'conversationCommentId' => $this->conversationCommentId,
-            'showConversationModal' => $this->showConversationModal,
-        ]);
     }
 
     /**
@@ -366,15 +427,6 @@ new #[Layout('components.layouts.app')] class extends Component {
             // Return the highlighted username
             return '<span class="text-blue-600 dark:text-blue-400 !font-semibold">@' . $username . '</span>';
         }, $content);
-    }
-
-    /**
-     * Test method to check if Livewire is working
-     */
-    public function testMethod(): void
-    {
-        \Log::info('Test method called successfully');
-        session()->flash('success', 'Test method called!');
     }
 };
 ?>
@@ -540,8 +592,8 @@ new #[Layout('components.layouts.app')] class extends Component {
                                 class="!w-fit rounded-lg border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900/50 text-sm text-[#231F20] dark:text-white focus:border-[#FFF200] dark:focus:border-yellow-400 focus:ring-2 focus:ring-[#FFF200]/20 dark:focus:ring-yellow-400/20 transition-all duration-200"
                             >
                                 <flux:select.option value="">All Comments</flux:select.option>
-                                <flux:select.option value="read">Read</flux:select.option>
-                                <flux:select.option value="unread">Unread</flux:select.option>
+                                <flux:select.option value="popular">Most Liked</flux:select.option>
+                                <flux:select.option value="recent">Most Recent</flux:select.option>
                             </flux:select>
 
                             <!-- Per Page -->
@@ -730,9 +782,46 @@ new #[Layout('components.layouts.app')] class extends Component {
                                     <span class="!font-semibold text-sm text-blue-600 dark:text-blue-400">
                                         {{ $isCurrentUser ? 'You' : ($comment->user->first_name . ' ' . $comment->user->other_names) }}
                                     </span>
-                                    <span class="text-sm text-[#231F20] dark:text-white leading-relaxed break-words flex-1">
-                                        {!! $this->parseCommentContent($comment->content) !!}
-                                    </span>
+
+                                    @if($editingComment && $editingCommentId === $comment->id)
+                                        <!-- Edit Form -->
+                                        <form wire:submit="updateComment" class="w-full space-y-3">
+                                            <flux:textarea
+                                                wire:model="editingContent"
+                                                placeholder="Edit your comment..."
+                                                class="w-full rounded-lg border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-[#231F20] dark:text-white placeholder:text-[#9B9EA4] dark:placeholder:text-zinc-500 focus:border-[#FFF200] dark:focus:border-yellow-400 focus:ring-2 focus:ring-[#FFF200]/20 dark:focus:ring-yellow-400/20 transition-all duration-200 resize-none"
+                                                rows="3"
+                                            />
+                                            @error('editingContent')
+                                                <span class="text-red-500 text-xs">{{ $message }}</span>
+                                            @enderror
+
+                                            <div class="flex justify-end gap-2">
+                                                <flux:button
+                                                    wire:click="cancelEditing"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    class="px-3 py-1 text-[#9B9EA4] hover:text-[#231F20] dark:text-zinc-400 dark:hover:text-white"
+                                                >
+                                                    Cancel
+                                                </flux:button>
+                                                <flux:button
+                                                    type="submit"
+                                                    variant="primary"
+                                                    size="sm"
+                                                    class="px-3 py-1 bg-[#FFF200] hover:bg-[#FFF200]/90 dark:bg-yellow-400 dark:hover:bg-yellow-300 text-[#231F20] dark:text-zinc-900"
+                                                    wire:loading.attr="disabled"
+                                                >
+                                                    <span wire:loading.remove>Save</span>
+                                                    <span wire:loading>Saving...</span>
+                                                </flux:button>
+                                            </div>
+                                        </form>
+                                    @else
+                                        <span class="text-sm text-[#231F20] dark:text-white leading-relaxed break-words flex-1">
+                                            {!! $this->parseCommentContent($comment->content) !!}
+                                        </span>
+                                    @endif
                                 </div>
 
                                 <!-- Timestamp and Actions -->
@@ -741,24 +830,24 @@ new #[Layout('components.layouts.app')] class extends Component {
                                         <span class="text-xs text-[#9B9EA4] dark:text-zinc-400">
                                             {{ $comment->created_at->diffForHumans() }}
                                         </span>
-                                        @if($comment->read_at)
-                                            <span class="text-xs text-green-600 dark:text-green-400 font-medium">
-                                                Read
-                                            </span>
-                                        @endif
                                     </div>
 
                                     <!-- Action Buttons -->
                                     <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                        @if($comment->user_id !== Auth::id() && !$comment->read_at)
-                                            <flux:button
-                                                wire:click="markAsRead({{ $comment->id }})"
-                                                variant="ghost"
-                                                size="sm"
-                                                class="p-1 h-6 w-6 text-[#9B9EA4] hover:text-green-600 dark:text-zinc-400 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200"
-                                            >
-                                                <flux:icon name="eye" class="w-3 h-3" />
-                                            </flux:button>
+                                        <!-- Like Button -->
+                                        <flux:button
+                                            wire:click="toggleLike({{ $comment->id }})"
+                                            variant="ghost"
+                                            size="sm"
+                                            class="p-1 h-6 w-6 {{ $comment->isLikedBy(Auth::user()->email) ? 'text-red-600 dark:text-red-400' : 'text-[#9B9EA4] hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400' }} hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
+                                        >
+                                            <flux:icon name="heart" class="w-3 h-3 {{ $comment->isLikedBy(Auth::user()->email) ? 'fill-current' : '' }}" />
+                                        </flux:button>
+
+                                        @if($comment->likes_count > 0)
+                                            <span class="text-xs text-[#9B9EA4] dark:text-zinc-400">
+                                                {{ $comment->likes_count }}
+                                            </span>
                                         @endif
 
                                         <flux:button
@@ -771,6 +860,26 @@ new #[Layout('components.layouts.app')] class extends Component {
                                         </flux:button>
 
                                         @if($comment->user_id === Auth::id())
+                                            @if($editingComment && $editingCommentId === $comment->id)
+                                                <flux:button
+                                                    wire:click="cancelEditing"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    class="p-1 h-6 w-6 text-[#9B9EA4] hover:text-gray-600 dark:text-zinc-400 dark:hover:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900/20 transition-all duration-200"
+                                                >
+                                                    <flux:icon name="x-mark" class="w-3 h-3" />
+                                                </flux:button>
+                                            @else
+                                                <flux:button
+                                                    wire:click="startEditing({{ $comment->id }})"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    class="p-1 h-6 w-6 text-[#9B9EA4] hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200"
+                                                >
+                                                    <flux:icon name="pencil" class="w-3 h-3" />
+                                                </flux:button>
+                                            @endif
+
                                             <flux:button
                                                 wire:click="deleteComment({{ $comment->id }})"
                                                 wire:confirm="Are you sure you want to delete this comment?"
@@ -887,9 +996,46 @@ new #[Layout('components.layouts.app')] class extends Component {
                                                             <span class="!font-semibold text-sm text-blue-600 dark:text-blue-400">
                                                                 {{ $isReplyCurrentUser ? 'You' : ($reply->user->first_name . ' ' . $reply->user->other_names) }}
                                                             </span>
-                                                            <span class="text-xs text-[#231F20] dark:text-white leading-relaxed break-words flex-1">
-                                                                {!! $this->parseCommentContent($reply->content) !!}
-                                                            </span>
+
+                                                            @if($editingComment && $editingCommentId === $reply->id)
+                                                                <!-- Edit Form for Reply -->
+                                                                <form wire:submit="updateComment" class="w-full space-y-2">
+                                                                    <flux:textarea
+                                                                        wire:model="editingContent"
+                                                                        placeholder="Edit your reply..."
+                                                                        class="w-full rounded-lg border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-[#231F20] dark:text-white placeholder:text-[#9B9EA4] dark:placeholder:text-zinc-500 focus:border-[#FFF200] dark:focus:border-yellow-400 focus:ring-2 focus:ring-[#FFF200]/20 dark:focus:ring-yellow-400/20 transition-all duration-200 resize-none text-xs"
+                                                                        rows="2"
+                                                                    />
+                                                                    @error('editingContent')
+                                                                        <span class="text-red-500 text-xs">{{ $message }}</span>
+                                                                    @enderror
+
+                                                                    <div class="flex justify-end gap-1">
+                                                                        <flux:button
+                                                                            wire:click="cancelEditing"
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            class="px-2 py-1 text-xs text-[#9B9EA4] hover:text-[#231F20] dark:text-zinc-400 dark:hover:text-white"
+                                                                        >
+                                                                            Cancel
+                                                                        </flux:button>
+                                                                        <flux:button
+                                                                            type="submit"
+                                                                            variant="primary"
+                                                                            size="sm"
+                                                                            class="px-2 py-1 text-xs bg-[#FFF200] hover:bg-[#FFF200]/90 dark:bg-yellow-400 dark:hover:bg-yellow-300 text-[#231F20] dark:text-zinc-900"
+                                                                            wire:loading.attr="disabled"
+                                                                        >
+                                                                            <span wire:loading.remove>Save</span>
+                                                                            <span wire:loading>Saving...</span>
+                                                                        </flux:button>
+                                                                    </div>
+                                                                </form>
+                                                            @else
+                                                                <span class="text-xs text-[#231F20] dark:text-white leading-relaxed break-words flex-1">
+                                                                    {!! $this->parseCommentContent($reply->content) !!}
+                                                                </span>
+                                                            @endif
                                                         </div>
 
                                                         <!-- Reply Timestamp and Actions -->
@@ -898,24 +1044,24 @@ new #[Layout('components.layouts.app')] class extends Component {
                                                                 <span class="text-xs text-[#9B9EA4] dark:text-zinc-400">
                                                                     {{ $reply->created_at->diffForHumans() }}
                                                                 </span>
-                                                                @if($reply->read_at)
-                                                                    <span class="text-xs text-green-600 dark:text-green-400 font-medium">
-                                                                        {{ __('Read') }}
-                                                                    </span>
-                                                                @endif
                                                             </div>
 
                                                             <!-- Reply Action Buttons -->
                                                             <div class="flex items-center gap-1 opacity-100 transition-opacity duration-200">
-                                                                @if($reply->user_id !== Auth::id() && !$reply->read_at)
-                                                                    <flux:button
-                                                                        wire:click="markAsRead({{ $reply->id }})"
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        class="p-1 h-5 w-5 text-[#9B9EA4] hover:text-green-600 dark:text-zinc-400 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200"
-                                                                    >
-                                                                        <flux:icon name="eye" class="w-2.5 h-2.5" />
-                                                                    </flux:button>
+                                                                <!-- Like Button for Reply -->
+                                                                <flux:button
+                                                                    wire:click="toggleLike({{ $reply->id }})"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    class="p-1 h-5 w-5 {{ $reply->isLikedBy(Auth::user()->email) ? 'text-red-600 dark:text-red-400' : 'text-[#9B9EA4] hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400' }} hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
+                                                                >
+                                                                    <flux:icon name="heart" class="w-2.5 h-2.5 {{ $reply->isLikedBy(Auth::user()->email) ? 'fill-current' : '' }}" />
+                                                                </flux:button>
+
+                                                                @if($reply->likes_count > 0)
+                                                                    <span class="text-xs text-[#9B9EA4] dark:text-zinc-400">
+                                                                        {{ $reply->likes_count }}
+                                                                    </span>
                                                                 @endif
 
                                                                 <button
@@ -927,6 +1073,26 @@ new #[Layout('components.layouts.app')] class extends Component {
                                                                 </button>
 
                                                                 @if($reply->user_id === Auth::id())
+                                                                    @if($editingComment && $editingCommentId === $reply->id)
+                                                                        <flux:button
+                                                                            wire:click="cancelEditing"
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            class="p-1 h-5 w-5 text-[#9B9EA4] hover:text-gray-600 dark:text-zinc-400 dark:hover:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900/20 transition-all duration-200"
+                                                                        >
+                                                                            <flux:icon name="x-mark" class="w-2.5 h-2.5" />
+                                                                        </flux:button>
+                                                                    @else
+                                                                        <flux:button
+                                                                            wire:click="startEditing({{ $reply->id }})"
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            class="p-1 h-5 w-5 text-[#9B9EA4] hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200"
+                                                                        >
+                                                                            <flux:icon name="pencil" class="w-2.5 h-2.5" />
+                                                                        </flux:button>
+                                                                    @endif
+
                                                                     <flux:button
                                                                         wire:click="deleteComment({{ $reply->id }})"
                                                                         wire:confirm="Are you sure you want to delete this reply?"

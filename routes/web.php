@@ -4,7 +4,9 @@ use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 use Livewire\Volt\Volt;
 
-
+Route::get('/', function () {
+    return view('welcome');
+})->name('home');
 
 Route::middleware(['auth', 'check.session.validity', 'check.account.status', 'check.profile.completion', 'check.terms.accepted'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');

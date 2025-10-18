@@ -22,11 +22,15 @@ class Comment extends Model
         'content',
         'comment_is_disabled',
         'replies_count',
+        'likes_count',
+        'liked_by_users',
     ];
 
     protected $casts = [
         'comment_is_disabled' => 'boolean',
         'replies_count' => 'integer',
+        'likes_count' => 'integer',
+        'liked_by_users' => 'array',
     ];
 
     protected static function booted()
@@ -56,6 +60,40 @@ class Comment extends Model
                 $comment->parent->increment('replies_count');
             }
         });
+    }
+
+    /**
+     * Check if a user has liked this comment.
+     */
+    public function isLikedBy(string $userEmail): bool
+    {
+        return in_array($userEmail, $this->liked_by_users ?? []);
+    }
+
+    /**
+     * Toggle like for a user.
+     */
+    public function toggleLike(string $userEmail): bool
+    {
+        $likedByUsers = $this->liked_by_users ?? [];
+
+        if ($this->isLikedBy($userEmail)) {
+            // Remove like
+            $likedByUsers = array_diff($likedByUsers, [$userEmail]);
+            $this->update([
+                'liked_by_users' => $likedByUsers,
+                'likes_count' => count($likedByUsers)
+            ]);
+            return false; // Not liked anymore
+        } else {
+            // Add like
+            $likedByUsers[] = $userEmail;
+            $this->update([
+                'liked_by_users' => $likedByUsers,
+                'likes_count' => count($likedByUsers)
+            ]);
+            return true; // Now liked
+        }
     }
 
     /**
