@@ -547,6 +547,21 @@ new #[Layout('components.layouts.app')] class extends Component {
                                         <span>{{ $this->getIdea()->thematicArea->name }}</span>
                                     </div>
                                 @endif
+                                {{-- view button --}}
+                                <div class="flex items-center gap-1.5">
+                                    <flux:button
+                                        href="{{ route('ideas.show', ['idea' => $this->getIdea()->slug]) }}"
+                                        wire:navigate
+                                        rel="noopener noreferrer"
+                                        variant="primary"
+                                        color="blue"
+                                        size="sm"
+                                        {{-- class="text-[#9B9EA4] dark:text-zinc-400 hover:text-[#231F20] dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all duration-200 px-2 py-1" --}}
+                                    >
+                                        <flux:icon name="eye" class="w-4 h-4" />
+                                        <span>View Idea</span>
+                                    </flux:button>
+                                </div>
                             </div>
                         </div>
                     </div>
