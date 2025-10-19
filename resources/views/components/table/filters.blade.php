@@ -74,6 +74,10 @@
                     <div class="flex flex-wrap gap-2 w-full">
                         {{ $filters }}
                     </div>
+                @else
+                    <div class="flex flex-wrap gap-2 w-full">
+                        {{ $slot }}
+                    </div>
                 @endif
             </div>
         </div>
