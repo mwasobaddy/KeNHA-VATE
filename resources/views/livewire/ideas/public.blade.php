@@ -176,22 +176,6 @@ new #[Layout('components.layouts.app')] class extends Component {
             ->where('idea_id', $ideaId)
             ->exists();
     }
-
-    /**
-     * View idea details
-     */
-    public function viewIdea(string $slug): void
-    {
-        $this->redirect(route('ideas.public.show', ['idea' => $slug]), navigate: true);
-    }
-
-    /**
-     * View idea comments
-     */
-    public function viewComments(string $slug): void
-    {
-        $this->redirect(route('ideas.public.show', ['idea' => $slug]) . '#comments', navigate: true);
-    }
 }; ?>
 
 <div class="backdrop-blur-lg min-h-screen bg-gradient-to-br from-[#F8EBD5]/20 via-white to-[#F8EBD5] dark:from-zinc-900/20 dark:via-zinc-800 dark:to-zinc-900 border border-zinc-200 dark:border-yellow-400 rounded-3xl py-12 px-4 sm:px-6 lg:px-8">
