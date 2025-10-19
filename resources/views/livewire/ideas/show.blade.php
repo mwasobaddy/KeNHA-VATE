@@ -115,6 +115,8 @@ new #[Layout('components.layouts.app')] class extends Component {
                     <flux:button
                         icon:trailing="arrow-left"
                         wire:click="backToIdeas"
+                        variant="primary"
+                        class="bg-[#FFF200] hover:bg-yellow-400 text-[#231F20] dark:bg-yellow-500 dark:hover:bg-yellow-600"
                         {{-- class="text-[#231F20] dark:text-white hover:bg-[#F8EBD5] dark:hover:bg-zinc-700" --}}
                     >
                         {{ __('Back to Ideas') }}
@@ -129,7 +131,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                             icon="pencil-square"
                             wire:click="editIdea"
                             variant="primary"
-                            class="bg-[#FFF200] hover:bg-yellow-400 text-[#231F20] dark:bg-yellow-500 dark:hover:bg-yellow-600"
+                            color="green"
                         >
                             {{ __('Edit Idea') }}
                         </flux:button>
@@ -322,13 +324,12 @@ new #[Layout('components.layouts.app')] class extends Component {
                             icon:variant="solid"
                             wire:click="downloadPdf('{{ $idea->slug }}')"
                             download="{{ $idea->attachment_filename ?? 'idea.pdf' }}"
-                            {{-- href="{{ route('ideas.pdf-viewer', $idea->slug) }}" --}}
                             target="_blank"
                             variant="primary"
-                            size="sm"
-                            class="bg-[#FFF200] hover:bg-yellow-400 text-[#231F20] dark:bg-yellow-500 dark:hover:bg-yellow-600"
+                            color="blue"
+                            class="w-full justify-start"
                         >
-                            Preview PDF
+                            {{ __('Preview PDF') }}
                         </flux:button>
                         {{-- <flux:button
                             wire:click="downloadPdf('{{ $idea->slug }}')"
@@ -390,8 +391,8 @@ new #[Layout('components.layouts.app')] class extends Component {
                             wire:navigate
                             href="{{ route('ideas.comments', $idea->slug) }}"
                             variant="primary"
-                            size="sm"
-                            class="w-full justify-start bg-[#FFF200] hover:bg-yellow-400 text-[#231F20] dark:bg-yellow-500 dark:hover:bg-yellow-600"
+                            color="blue"
+                            class="w-full justify-start"
                         >
                             {{ __('View Comments') }}
                         </flux:button>
@@ -407,9 +408,10 @@ new #[Layout('components.layouts.app')] class extends Component {
                                 icon="pencil-square"
                                 wire:click="editIdea"
                                 variant="primary"
-                                class="w-full justify-start bg-[#FFF200] hover:bg-yellow-400 text-[#231F20] dark:bg-yellow-500 dark:hover:bg-yellow-600"
+                                color="green"
+                                class="w-full justify-start"
                             >
-                                Edit Idea
+                                {{ __('Edit Idea') }}
                             </flux:button>
                         @endif
 
@@ -417,6 +419,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                             icon="chat-bubble-left-right"
                             wire:click="$redirect('{{ route('ideas.comments', $idea->slug) }}')"
                             variant="primary"
+                            color="blue"
                             class="w-full justify-start"
                         >
                             {{ __('View Comments') }}
