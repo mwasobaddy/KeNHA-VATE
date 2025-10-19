@@ -486,7 +486,6 @@ new #[Layout('components.layouts.app')] class extends Component {
                         icon="plus"
                         wire:click="toggleCommentModal"
                         variant="primary"
-                        {{-- size="lg" --}}
                         class="rounded-xl bg-[#FFF200] hover:bg-[#FFF200]/90 dark:bg-yellow-400 dark:hover:bg-yellow-300 px-6 py-3 text-[#231F20] dark:text-zinc-900 font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
                     >
                         {{ __('Add Comment') }}
