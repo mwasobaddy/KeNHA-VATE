@@ -111,4 +111,32 @@ class Idea extends Model
     {
         return $this->hasMany(Comment::class);
     }
+
+    /**
+     * Get the likes for the idea.
+     */
+    public function likes(): HasMany
+    {
+        return $this->hasMany(IdeaLike::class);
+    }
+
+    /**
+     * Get the likes count dynamically.
+     */
+    public function getLikesCountAttribute(): int
+    {
+        return $this->likes()->count();
+    }
+
+    /**
+     * Check if the idea is liked by a specific user.
+     */
+    public function isLikedBy(?int $userId): bool
+    {
+        if (!$userId) {
+            return false;
+        }
+
+        return $this->likes()->where('user_id', $userId)->exists();
+    }
 }

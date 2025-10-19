@@ -22,8 +22,6 @@ class Comment extends Model
         'content',
         'comment_is_disabled',
         'replies_count',
-        'likes_count',
-        'liked_by_users',
     ];
 
     protected $casts = [
@@ -65,33 +63,33 @@ class Comment extends Model
     /**
      * Check if a user has liked this comment.
      */
-    public function isLikedBy(string $userEmail): bool
+    public function isLikedBy(?int $userId): bool
     {
-        return in_array($userEmail, $this->liked_by_users ?? []);
+        if (!$userId) {
+            return false;
+        }
+
+        return $this->likes()->where('user_id', $userId)->exists();
     }
 
     /**
      * Toggle like for a user.
      */
-    public function toggleLike(string $userEmail): bool
+    public function toggleLike(?int $userId): bool
     {
-        $likedByUsers = $this->liked_by_users ?? [];
+        if (!$userId) {
+            return false;
+        }
 
-        if ($this->isLikedBy($userEmail)) {
+        $existingLike = $this->likes()->where('user_id', $userId)->first();
+
+        if ($existingLike) {
             // Remove like
-            $likedByUsers = array_diff($likedByUsers, [$userEmail]);
-            $this->update([
-                'liked_by_users' => $likedByUsers,
-                'likes_count' => count($likedByUsers)
-            ]);
+            $existingLike->delete();
             return false; // Not liked anymore
         } else {
             // Add like
-            $likedByUsers[] = $userEmail;
-            $this->update([
-                'liked_by_users' => $likedByUsers,
-                'likes_count' => count($likedByUsers)
-            ]);
+            $this->likes()->create(['user_id' => $userId]);
             return true; // Now liked
         }
     }
@@ -126,6 +124,22 @@ class Comment extends Model
     public function replies(): HasMany
     {
         return $this->hasMany(Comment::class, 'parent_id');
+    }
+
+    /**
+     * Get the likes for this comment.
+     */
+    public function likes(): HasMany
+    {
+        return $this->hasMany(CommentLike::class);
+    }
+
+    /**
+     * Get the likes count dynamically.
+     */
+    public function getLikesCountAttribute(): int
+    {
+        return $this->likes()->count();
     }
 
     /**

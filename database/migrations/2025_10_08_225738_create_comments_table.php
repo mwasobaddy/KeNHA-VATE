@@ -20,8 +20,6 @@ return new class extends Migration
             $table->text('content');
             $table->boolean('comment_is_disabled')->default(false);
             $table->unsignedInteger('replies_count')->default(0);
-            $table->unsignedInteger('likes_count')->default(0);
-            $table->json('liked_by_users')->nullable(); // Array of user emails who liked this comment
             $table->timestamps();
             $table->softDeletes();
 
