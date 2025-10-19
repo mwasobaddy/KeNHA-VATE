@@ -32,6 +32,11 @@ new #[Layout('components.layouts.app')] class extends Component {
     public array $selectedIdeas = [];
     public bool $selectAll = false;
 
+    // Delete modal
+    public bool $showDeleteModal = false;
+    public ?int $deleteIdeaId = null;
+    public array $deleteSelectedIds = [];
+
     /**
      * Sync filter state to the URL query string for persistence and shareability
      */
@@ -175,41 +180,121 @@ new #[Layout('components.layouts.app')] class extends Component {
     }
 
     /**
-     * Delete an idea
+     * Open delete modal for single idea
      */
-    public function deleteIdea(int $ideaId): void
+    public function openDeleteModal(int $ideaId): void
     {
-        $idea = Idea::where('user_id', Auth::id())->findOrFail($ideaId);
-
-        // Only allow deletion of drafts
-        if ($idea->status === 'draft') {
-            $idea->delete();
-            session()->flash('success', 'Idea deleted successfully.');
-            $this->clearSelection();
-        } else {
-            session()->flash('error', 'Only draft ideas can be deleted.');
-        }
+        $this->deleteIdeaId = $ideaId;
+        $this->deleteSelectedIds = [];
+        $this->showDeleteModal = true;
     }
 
     /**
-     * Delete selected ideas
+     * Open delete modal for selected ideas
      */
-    public function deleteSelected(): void
+    public function openDeleteSelectedModal(): void
+    {
+        $this->deleteSelectedIds = $this->selectedIdeas;
+        $this->deleteIdeaId = null;
+        $this->showDeleteModal = true;
+    }
+
+    /**
+     * Close delete modal
+     */
+    public function closeDeleteModal(): void
+    {
+        $this->showDeleteModal = false;
+        $this->deleteIdeaId = null;
+        $this->deleteSelectedIds = [];
+    }
+
+        /**
+     * Soft delete single idea
+     */
+    public function softDeleteIdea(): void
+    {
+        if ($this->deleteIdeaId) {
+            $idea = Idea::where('user_id', Auth::id())->findOrFail($this->deleteIdeaId);
+
+            // Soft delete is allowed for non-draft ideas (submitted, in_review, etc.)
+            if ($idea->status !== 'draft') {
+                $idea->delete(); // Soft delete
+                session()->flash('success', 'Idea moved to trash successfully.');
+            } else {
+                session()->flash('error', 'Draft ideas should be permanently deleted.');
+            }
+        }
+
+        $this->closeDeleteModal();
+        $this->clearSelection();
+    }
+
+    /**
+     * Permanently delete single idea
+     */
+    public function permanentDeleteIdea(): void
+    {
+        if ($this->deleteIdeaId) {
+            $idea = Idea::where('user_id', Auth::id())->withTrashed()->findOrFail($this->deleteIdeaId);
+
+            // Permanent delete is allowed for draft ideas
+            if ($idea->status === 'draft') {
+                $idea->forceDelete(); // Permanent delete
+                session()->flash('success', 'Idea permanently deleted successfully.');
+            } else {
+                session()->flash('error', 'Only draft ideas can be permanently deleted.');
+            }
+        }
+
+        $this->closeDeleteModal();
+        $this->clearSelection();
+    }
+
+    /**
+     * Soft delete selected ideas
+     */
+    public function softDeleteSelected(): void
     {
         $ideas = Idea::where('user_id', Auth::id())
-            ->whereIn('id', $this->selectedIdeas)
-            ->where('status', 'draft')
+            ->whereIn('id', $this->deleteSelectedIds)
+            ->where('status', '!=', 'draft') // Only non-draft ideas can be soft deleted
             ->get();
 
         if ($ideas->count() > 0) {
             foreach ($ideas as $idea) {
-                $idea->delete();
+                $idea->delete(); // Soft delete
             }
-            session()->flash('success', $ideas->count() . ' draft idea(s) deleted successfully.');
+            session()->flash('success', $ideas->count() . ' idea(s) moved to trash successfully.');
         } else {
-            session()->flash('error', 'No draft ideas were selected for deletion.');
+            session()->flash('error', 'No eligible ideas were selected for soft deletion. Only non-draft ideas can be moved to trash.');
         }
 
+        $this->closeDeleteModal();
+        $this->clearSelection();
+    }
+
+    /**
+     * Permanently delete selected ideas
+     */
+    public function permanentDeleteSelected(): void
+    {
+        $ideas = Idea::where('user_id', Auth::id())
+            ->withTrashed()
+            ->whereIn('id', $this->deleteSelectedIds)
+            ->where('status', 'draft') // Only draft ideas can be permanently deleted
+            ->get();
+
+        if ($ideas->count() > 0) {
+            foreach ($ideas as $idea) {
+                $idea->forceDelete(); // Permanent delete
+            }
+            session()->flash('success', $ideas->count() . ' draft idea(s) permanently deleted successfully.');
+        } else {
+            session()->flash('error', 'No draft ideas were selected for permanent deletion.');
+        }
+
+        $this->closeDeleteModal();
         $this->clearSelection();
     }
 
@@ -511,8 +596,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                 [
                     'text' => 'Delete Selected',
                     'icon' => 'trash',
-                    'wireClick' => 'deleteSelected',
-                    'confirm' => 'Are you sure you want to delete the selected draft ideas?',
+                    'wireClick' => 'openDeleteSelectedModal',
                     'variant' => 'danger'
                 ]
             ]"
@@ -702,7 +786,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                         <flux:tooltip content="Delete Idea">
                                             <flux:button
                                                 icon="trash"
-                                                wire:click="deleteIdea({{ $idea->id }})"
+                                                wire:click="openDeleteModal({{ $idea->id }})"
                                                 variant="danger"
                                                 size="sm"
                                             >
@@ -742,6 +826,15 @@ new #[Layout('components.layouts.app')] class extends Component {
         <x-table.pagination :paginator="$this->getIdeas()" />
 
     </div>
+
+    {{-- Delete Confirmation Modal --}}
+    <x-table.delete-modal
+        wire-model="showDeleteModal"
+        :idea="$deleteIdeaId ? \App\Models\Idea::where('user_id', Auth::id())->find($deleteIdeaId) : null"
+        wire-soft-delete="$deleteIdeaId ? 'softDeleteIdea' : 'softDeleteSelected'"
+        wire-permanent-delete="$deleteIdeaId ? 'permanentDeleteIdea' : 'permanentDeleteSelected'"
+        wire-cancel="closeDeleteModal"
+    />
 
     <style>
         /* Custom Scrollbar for better UX */
