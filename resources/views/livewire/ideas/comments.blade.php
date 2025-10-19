@@ -199,8 +199,8 @@ new #[Layout('components.layouts.app')] class extends Component {
                          ->first();
 
         if ($comment) {
-            $userEmail = Auth::user()->email;
-            $isLiked = $comment->toggleLike($userEmail);
+            $userId = Auth::user()->id;
+            $isLiked = $comment->toggleLike($userId);
 
             // Optional: Send notification when someone likes a comment
             if ($isLiked && $comment->user_id !== Auth::id()) {
@@ -850,11 +850,11 @@ new #[Layout('components.layouts.app')] class extends Component {
                                         <div class="flex items-center">
                                             <flux:button
                                                 icon="heart"
-                                                icon:variant="{{ $comment->isLikedBy(Auth::user()->email) ? 'solid' : 'outline' }}"
+                                                icon:variant="{{ $comment->isLikedBy(Auth::user()->id) ? 'solid' : 'outline' }}"
                                                 wire:click="toggleLike({{ $comment->id }})"
                                                 variant="ghost"
                                                 size="sm"
-                                                class="{{ $comment->isLikedBy(Auth::user()->email) ? '!text-red-600' : '!text-red-600' }} hover:!bg-transparent transition-all duration-200"
+                                                class="{{ $comment->isLikedBy(Auth::user()->id) ? '!text-red-600' : '!text-red-600' }} hover:!bg-transparent transition-all duration-200"
                                             >
                                             </flux:button>
 
@@ -1057,11 +1057,11 @@ new #[Layout('components.layouts.app')] class extends Component {
                                                                 <div class="flex items-center">
                                                                     <flux:button
                                                                         icon="heart"
-                                                                        icon:variant="{{ $reply->isLikedBy(Auth::user()->email) ? 'solid' : 'outline' }}"
+                                                                        icon:variant="{{ $reply->isLikedBy(Auth::user()->id) ? 'solid' : 'outline' }}"
                                                                         wire:click="toggleLike({{ $reply->id }})"
                                                                         variant="ghost"
                                                                         size="sm"
-                                                                        class="{{ $reply->isLikedBy(Auth::user()->email) ? '!text-red-600' : '!text-red-600' }} hover:!bg-transparent transition-all duration-200"
+                                                                        class="{{ $reply->isLikedBy(Auth::user()->id) ? '!text-red-600' : '!text-red-600' }} hover:!bg-transparent transition-all duration-200"
                                                                     >
                                                                     </flux:button>
 
