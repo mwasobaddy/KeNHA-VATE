@@ -42,7 +42,13 @@ new #[Layout('components.layouts.app')] class extends Component {
             abort(403, 'Unauthorized');
         }
 
+        // Load relationships AND count active comments
         $this->idea = $ideaModel->load(['thematicArea', 'user.staff']);
+        
+        // Add comments count - only active (non-disabled) comments
+        $this->idea->comments_count = \App\Models\Comment::where('idea_id', $this->idea->id)
+            ->where('comment_is_disabled', false)
+            ->count();
     }
 
     /**
@@ -86,57 +92,80 @@ new #[Layout('components.layouts.app')] class extends Component {
 <div class="backdrop-blur-lg">
     <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 border border-zinc-200 dark:border-yellow-400 rounded-3xl bg-gradient-to-br from-[#F8EBD5]/20 via-white to-[#F8EBD5] dark:from-zinc-900/20 dark:via-zinc-800 dark:to-zinc-900 border">
 
-        <!-- Header Section -->
-        <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6 mb-6">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-4">
+        <!-- Header Section with Icon -->
+        <div class="mb-8 sm:mb-12 gap-6 flex flex-col">
+            <div class="flex flex-row justify-between">
+                <div>
                     <flux:button
-                        icon="arrow-left"
+                        icon:trailing="arrow-left"
                         wire:click="backToIdeas"
-                        variant="ghost"
-                        class="text-[#231F20] dark:text-white hover:bg-[#F8EBD5] dark:hover:bg-zinc-700"
+                        {{-- class="text-[#231F20] dark:text-white hover:bg-[#F8EBD5] dark:hover:bg-zinc-700" --}}
                     >
-                        Back to Ideas
+                        {{ __('Back to Ideas') }}
                     </flux:button>
-
-                    <div class="inline-flex items-center justify-center p-3 rounded-full bg-gradient-to-br from-[#FFF200] to-yellow-300 dark:from-yellow-400 dark:to-yellow-500 shadow-lg border-2 border-[#231F20] dark:border-zinc-700">
-                        <flux:icon name="document-text" class="w-6 h-6 text-[#231F20] dark:text-zinc-900" />
-                    </div>
-
-                    <div>
-                        @if(isset($idea))
-                            <h1 class="text-3xl font-bold text-[#231F20] dark:text-white">
-                                {{ $idea->idea_title }}
-                            </h1>
-                            <div class="flex items-center gap-4 mt-2">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                    @if($idea->status === 'draft') bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400
-                                    @elseif($idea->status === 'submitted') bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400
-                                    @elseif($idea->status === 'in_review') bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400
-                                    @else bg-gray-100 dark:bg-gray-900/20 text-gray-800 dark:text-gray-400
-                                    @endif">
-                                    {{ ucfirst($idea->status) }}
-                                </span>
-                                <span class="text-sm text-[#9B9EA4] dark:text-zinc-400">
-                                    Created {{ $idea->created_at->format('M j, Y \a\t g:i A') }}
-                                </span>
-                            </div>
-                        @else
-                            <p class="text-red-500">Idea not found or inaccessible.</p>
-                        @endif
+                </div>
+                <div>
+                    @if(in_array($idea->status, ['draft', 'submitted']))
+                        <flux:button
+                            icon="pencil-square"
+                            wire:click="editIdea"
+                            variant="primary"
+                            class="bg-[#FFF200] hover:bg-yellow-400 text-[#231F20] dark:bg-yellow-500 dark:hover:bg-yellow-600"
+                        >
+                            {{ __('Edit Idea') }}
+                        </flux:button>
+                    @endif
+                </div>
+            </div>
+            <div class="flex flex-row items-start sm:items-center gap-4 sm:gap-6">
+                <!-- Animated Icon Badge -->
+                <div 
+                    x-data="{ show: false }" 
+                    x-init="setTimeout(() => show = true, 100)"
+                    x-show="show"
+                    x-transition:enter="transition ease-out duration-500 delay-100"
+                    x-transition:enter-start="opacity-0 scale-75 -rotate-12"
+                    x-transition:enter-end="opacity-100 scale-100 rotate-0"
+                    class="flex-shrink-0"
+                >
+                    <div class="relative">
+                        <div class="absolute inset-0 bg-[#FFF200]/20 dark:bg-yellow-400/20 rounded-2xl blur-xl"></div>
+                        <div class="relative flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-[#FFF200] via-yellow-300 to-yellow-400 dark:from-yellow-400 dark:via-yellow-500 dark:to-yellow-600 shadow-lg">
+                            <flux:icon name="light-bulb" class="w-8 h-8 sm:w-10 sm:h-10 text-[#231F20] dark:text-zinc-900" />
+                        </div>
                     </div>
                 </div>
 
-                @if(in_array($idea->status, ['draft', 'submitted']))
-                    <flux:button
-                        icon="pencil-square"
-                        wire:click="editIdea"
-                        variant="primary"
-                        class="bg-[#FFF200] hover:bg-yellow-400 text-[#231F20] dark:bg-yellow-500 dark:hover:bg-yellow-600"
+                <!-- Header Text with staggered animation -->
+                <div 
+                    class="flex-1"
+                    x-data="{ show: false }" 
+                    x-init="setTimeout(() => show = true, 200)"
+                >
+                    <div 
+                        x-show="show"
+                        x-transition:enter="transition ease-out duration-700"
+                        x-transition:enter-start="opacity-0 translate-x-4"
+                        x-transition:enter-end="opacity-100 translate-x-0"
                     >
-                        Edit Idea
-                    </flux:button>
-                @endif
+                        <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#231F20] dark:text-white tracking-tight">
+                            {{ $idea->idea_title }}
+                        </h1>
+                        <p class="mt-2 text-base sm:text-lg text-[#9B9EA4] dark:text-zinc-400">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                @if($idea->status === 'draft') bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400
+                                @elseif($idea->status === 'submitted') bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400
+                                @elseif($idea->status === 'in_review') bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400
+                                @else bg-gray-100 dark:bg-gray-900/20 text-gray-800 dark:text-gray-400
+                                @endif">
+                                {{ ucfirst($idea->status) }}
+                            </span>
+                            <span class="text-sm text-[#9B9EA4] dark:text-zinc-400">
+                                Created {{ $idea->created_at->format('M j, Y \a\t g:i A') }}
+                            </span>
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -333,21 +362,21 @@ new #[Layout('components.layouts.app')] class extends Component {
 
                 <!-- Comments -->
                 <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-lg font-semibold text-[#231F20] dark:text-white">Comments</h3>
+                    <div class="flex flex-col justify-between">
+                        <h3 class="text-lg font-semibold text-[#231F20] dark:text-white">
+                            {{ $idea->comments_count ?? 0 }}&nbsp;{{ __('Comment') }}{{ ($idea->comments_count ?? 0) !== 1 ? 's' : '' }}
+                        </h3>
                         <flux:button
-                            wire:click="$redirect('{{ route('ideas.comments', $idea->slug) }}')"
+                            icon="chat-bubble-left-right"
+                            wire:navigate
+                            href="{{ route('ideas.comments', $idea->slug) }}"
                             variant="primary"
                             size="sm"
-                            class="bg-[#FFF200] hover:bg-yellow-400 text-[#231F20] dark:bg-yellow-500 dark:hover:bg-yellow-600"
+                            class="w-full justify-start bg-[#FFF200] hover:bg-yellow-400 text-[#231F20] dark:bg-yellow-500 dark:hover:bg-yellow-600"
                         >
-                            <flux:icon name="chat-bubble-left-right" class="w-4 h-4 mr-1" />
-                            View Comments
+                            {{ __('View Comments') }}
                         </flux:button>
                     </div>
-                    <p class="text-sm text-[#9B9EA4] dark:text-zinc-400 mt-2">
-                        {{ $idea->comments_count ?? 0 }} comment{{ ($idea->comments_count ?? 0) !== 1 ? 's' : '' }}
-                    </p>
                 </div>
 
                 <!-- Actions -->
@@ -371,16 +400,15 @@ new #[Layout('components.layouts.app')] class extends Component {
                             variant="primary"
                             class="w-full justify-start"
                         >
-                            View Comments
+                            {{ __('View Comments') }}
                         </flux:button>
 
                         <flux:button
                             icon="arrow-left"
                             wire:click="backToIdeas"
-                            variant="ghost"
                             class="w-full justify-start"
                         >
-                            Back to Ideas
+                            {{ __('Back to Ideas') }}
                         </flux:button>
                     </div>
                 </div>
