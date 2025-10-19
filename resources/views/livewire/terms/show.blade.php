@@ -64,29 +64,47 @@ new #[Layout('components.layouts.app')] class extends Component {
 
 <div class="min-h-screen bg-gradient-to-br from-[#F8EBD5] via-white to-[#F8EBD5] dark:from-zinc-900 dark:via-zinc-800 dark:to-zinc-900 py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-4xl mx-auto space-y-8">
-        
         <!-- Header Section with Icon -->
-        <div class="text-center space-y-4" x-data="{ show: false }" x-init="setTimeout(() => show = true, 100)">
-            <div x-show="show" 
-                 x-transition:enter="transition ease-out duration-500"
-                 x-transition:enter-start="opacity-0 scale-90"
-                 x-transition:enter-end="opacity-100 scale-100"
-                 class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-[#FFF200] to-yellow-300 dark:from-yellow-400 dark:to-yellow-500 shadow-lg mx-auto mb-6">
-                <svg class="w-10 h-10 text-[#231F20] dark:text-zinc-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                </svg>
-            </div>
-            
-            <div x-show="show" 
-                 x-transition:enter="transition ease-out duration-700 delay-200"
-                 x-transition:enter-start="opacity-0 translate-y-4"
-                 x-transition:enter-end="opacity-100 translate-y-0">
-                <h1 class="text-4xl font-bold text-[#231F20] dark:text-white">
-                    {{ __('Terms & Conditions') }}
-                </h1>
-                <p class="mt-3 text-lg text-[#9B9EA4] dark:text-zinc-400 max-w-2xl mx-auto">
-                    {{ __('Please read and accept our terms to unlock the full KeNHAVATE experience') }}
-                </p>
+        <div class="mb-8 sm:mb-12">
+            <div class="flex flex-row items-start sm:items-center gap-4 sm:gap-6">
+                <!-- Animated Icon Badge -->
+                <div 
+                    x-data="{ show: false }" 
+                    x-init="setTimeout(() => show = true, 100)"
+                    x-show="show"
+                    x-transition:enter="transition ease-out duration-500 delay-100"
+                    x-transition:enter-start="opacity-0 scale-75 -rotate-12"
+                    x-transition:enter-end="opacity-100 scale-100 rotate-0"
+                    class="flex-shrink-0"
+                >
+                    <div class="relative">
+                        <div class="absolute inset-0 bg-[#FFF200]/20 dark:bg-yellow-400/20 rounded-2xl blur-xl"></div>
+                        <div class="relative flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-[#FFF200] via-yellow-300 to-yellow-400 dark:from-yellow-400 dark:via-yellow-500 dark:to-yellow-600 shadow-lg">
+                            <flux:icon name="clipboard-document-list" class="w-8 h-8 sm:w-10 sm:h-10 text-[#231F20] dark:text-zinc-900" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Header Text with staggered animation -->
+                <div 
+                    class="flex-1"
+                    x-data="{ show: false }" 
+                    x-init="setTimeout(() => show = true, 200)"
+                >
+                    <div 
+                        x-show="show"
+                        x-transition:enter="transition ease-out duration-700"
+                        x-transition:enter-start="opacity-0 translate-x-4"
+                        x-transition:enter-end="opacity-100 translate-x-0"
+                    >
+                        <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#231F20] dark:text-white tracking-tight">
+                            {{ __('Terms & Conditions') }}
+                        </h1>
+                        <p class="mt-2 text-base sm:text-lg text-[#9B9EA4] dark:text-zinc-400">
+                            {{ __('Please read and accept our terms to unlock the full KeNHAVATE experience') }}
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
 
