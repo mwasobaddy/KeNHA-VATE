@@ -82,6 +82,16 @@
                                             </a>
                                         </div>
                                     </li>
+                                    <li>
+                                        <div class="block px-2 py-1 border-l-2 py-2 flex items-center rounded-e-4xl {{ request()->routeIs('ideas.public') ? 'border-[#FFF200] dark:border-yellow-400 text-zinc-500 dark:text-zinc-200 hover:bg-zinc-300/50 dark:hover:bg-zinc-800' : 'border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-300/50 dark:hover:bg-zinc-800' }} duration-300 ease-in-out">
+                                            <svg class="w-2 h-2 mr-2 {{ request()->routeIs('ideas.public') ? 'fill-current text-[#FFF200] dark:text-yellow-400' : 'fill-zinc-500 dark:fill-zinc-700' }}" viewBox="0 0 24 24">
+                                                <circle cx="12" cy="12" r="10"/>
+                                            </svg>
+                                            <a href="{{ route('ideas.public') }}" wire:navigate>
+                                                {{ __('Public Ideas') }}
+                                            </a>
+                                        </div>
+                                    </li>
                                 </ul>
                             </div>
                         </li>
