@@ -17,8 +17,11 @@ class PdfController extends Controller
         // Find the idea by slug
         $idea = Idea::where('slug', $slug)->firstOrFail();
 
-        // Check if user owns this idea
-        if ($idea->user_id !== Auth::id()) {
+        // Check if user owns this idea OR if it's a collaborative idea available publicly
+        $isOwner = $idea->user_id === Auth::id();
+        $isPublicCollaborative = $idea->collaboration_enabled && $idea->status === 'submitted';
+
+        if (!$isOwner && !$isPublicCollaborative) {
             abort(403, 'Unauthorized');
         }
 
