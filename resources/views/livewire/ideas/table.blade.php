@@ -114,10 +114,41 @@ new #[Layout('components.layouts.app')] class extends Component {
     /**
      * View idea details
      */
-    public function viewIdea(int $ideaId)
+    public function viewIdea(int $ideaId): void
     {
         $idea = Idea::where('user_id', Auth::id())->findOrFail($ideaId);
-        return redirect()->route('ideas.show', ['idea' => $idea->slug]);
+
+        // Ensure the idea has a slug
+        if (!$idea->slug) {
+            $base = \Illuminate\Support\Str::slug(substr($idea->idea_title ?: 'idea', 0, 50));
+            if (!$base) {
+                $base = 'idea';
+            }
+            $slug = $base;
+            $counter = 1;
+            while (Idea::where('slug', $slug)->exists()) {
+                $slug = $base . '-' . $counter++;
+            }
+            $idea->update(['slug' => $slug]);
+            $idea->refresh();
+        }
+
+        // Debug: Log the route and slug
+        \Log::info('Viewing idea', [
+            'id' => $idea->id,
+            'slug' => $idea->slug,
+            'status' => $idea->status,
+            'route' => $idea->status === 'draft' 
+                ? route('ideas.edit_draft.draft', ['draft' => $idea->slug])
+                : route('ideas.show', ['idea' => $idea->slug])
+        ]);
+
+        // For now, redirect to edit if draft, or show read-only view
+        if ($idea->status === 'draft') {
+            $this->redirect(route('ideas.edit_draft.draft', ['draft' => $idea->slug]), navigate: true);
+        } else {
+            $this->redirect(route('ideas.show', ['idea' => $idea->slug]), navigate: true);
+        }
     }
 
     /**
