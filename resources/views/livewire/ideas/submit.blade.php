@@ -744,7 +744,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                 </span>
                             </div>
                         </div>
-                        <p class="text-xs text-[#9B9EA4] dark:text-zinc-400 flex items-start space-x-1">
+                        <p class="text-xs text-cyan-600 flex items-start space-x-1">
                             <svg class="w-3 h-3 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
                             </svg>
@@ -769,7 +769,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                 <option value="{{ $area->id }}">{{ $area->name }}</option>
                             @endforeach
                         </flux:select>
-                        <p class="text-xs text-[#9B9EA4] dark:text-zinc-400 flex items-start space-x-1">
+                        <p class="text-xs text-cyan-600 flex items-start space-x-1">
                             <svg class="w-3 h-3 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
                             </svg>
@@ -788,7 +788,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                             class="w-full"
                         />
                         <div class="flex items-center justify-between text-xs">
-                            <p class="text-[#9B9EA4] dark:text-zinc-400 flex items-start space-x-1">
+                            <p class="text-xs text-cyan-600 flex items-start space-x-1">
                                 <svg class="w-3 h-3 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
                                 </svg>
@@ -853,7 +853,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                             placeholder="What specific challenge or pain point does your idea address? Be clear about the scope, impact, and urgency of the problem..."
                             class="w-full"
                         />
-                        <p class="text-xs text-[#9B9EA4] dark:text-zinc-400 flex items-start space-x-1">
+                        <p class="text-xs text-cyan-600 flex items-start space-x-1">
                             <svg class="w-3 h-3 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
                             </svg>
@@ -880,7 +880,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                             placeholder="Describe your innovative solution in detail. How does it work? What makes it unique? What are the key features and benefits..."
                             class="w-full"
                         />
-                        <p class="text-xs text-[#9B9EA4] dark:text-zinc-400 flex items-start space-x-1">
+                        <p class="text-xs text-cyan-600 flex items-start space-x-1">
                             <svg class="w-3 h-3 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
                             </svg>
@@ -908,7 +908,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                             placeholder="Break down the implementation costs, expected benefits, potential risks, and mitigation strategies. Include timeframes and ROI estimates if possible..."
                             class="w-full"
                         />
-                        <p class="text-xs text-[#9B9EA4] dark:text-zinc-400 flex items-start space-x-1">
+                        <p class="text-xs text-cyan-600 flex items-start space-x-1">
                             <svg class="w-3 h-3 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
                             </svg>
@@ -935,7 +935,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                             placeholder="Declare any personal or corporate interests in this idea. What role do you envision playing if this idea is implemented? Are there any potential conflicts of interest..."
                             class="w-full"
                         />
-                        <p class="text-xs text-[#9B9EA4] dark:text-zinc-400 flex items-start space-x-1">
+                        <p class="text-xs text-cyan-600 flex items-start space-x-1">
                             <svg class="w-3 h-3 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
                             </svg>
@@ -1087,7 +1087,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                             </div>
                         </div>
 
-                        <p class="text-xs text-[#9B9EA4] dark:text-zinc-400 flex items-start space-x-1" x-text="helperText">
+                        <p class="text-xs text-cyan-600 flex items-start space-x-1" x-text="helperText">
                         </p>
                     </div>
 
