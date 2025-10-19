@@ -39,7 +39,9 @@ new #[Layout('components.layouts.app')] class extends Component {
         'search' => ['except' => ''],
         'status' => ['except' => ''],
         'thematicArea' => ['except' => ''],
-        'page' => ['except' => 1],
+        'sortField' => ['except' => 'created_at'],
+        'sortDirection' => ['except' => 'desc'],
+        'perPage' => ['except' => 10],
     ];
 
     /**
@@ -321,28 +323,45 @@ new #[Layout('components.layouts.app')] class extends Component {
     <div class="max-w-7xl mx-auto space-y-8">
 
         <!-- Header Section -->
-        <div class="flex flex-wrap justify-between bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6 space-y-4">
-            <div class="flex gap-4 min-w-fit" x-data="{ show: false }" x-init="setTimeout(() => show = true, 100)">
-                <div x-show="show"
-                    x-transition:enter="transition ease-out duration-1000"
-                    x-transition:enter-start="opacity-0 transform scale-95"
-                    x-transition:enter-end="opacity-100 transform scale-100"
-                    class="inline-flex items-center justify-center p-2 rounded-full bg-gradient-to-br from-[#FFF200] to-yellow-300 dark:from-yellow-400 dark:to-yellow-500 shadow-lg border-2 border-[#231F20] dark:border-zinc-700 mb-6 h-fit"
+        <div class="mb-8 sm:mb-12">
+            <div class="flex flex-row items-start sm:items-center gap-4 sm:gap-6">
+                <!-- Animated Icon Badge -->
+                <div 
+                    x-data="{ show: false }" 
+                    x-init="setTimeout(() => show = true, 100)"
+                    x-show="show"
+                    x-transition:enter="transition ease-out duration-500 delay-100"
+                    x-transition:enter-start="opacity-0 scale-75 -rotate-12"
+                    x-transition:enter-end="opacity-100 scale-100 rotate-0"
+                    class="flex-shrink-0"
                 >
-                    <flux:icon name="light-bulb" class="w-8 h-8 text-[#231F20] dark:text-zinc-900" />
+                    <div class="relative">
+                        <div class="absolute inset-0 bg-[#FFF200]/20 dark:bg-yellow-400/20 rounded-2xl blur-xl"></div>
+                        <div class="relative flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-[#FFF200] via-yellow-300 to-yellow-400 dark:from-yellow-400 dark:via-yellow-500 dark:to-yellow-600 shadow-lg">
+                            <flux:icon name="light-bulb" class="w-8 h-8 sm:w-10 sm:h-10 text-[#231F20] dark:text-zinc-900" />
+                        </div>
+                    </div>
                 </div>
 
-                <div x-show="show"
-                    x-transition:enter="transition ease-out duration-1000 delay-200"
-                    x-transition:enter-start="opacity-0 transform translate-y-4"
-                    x-transition:enter-end="opacity-100 transform translate-y-0"
+                <!-- Header Text with staggered animation -->
+                <div 
+                    class="flex-1"
+                    x-data="{ show: false }" 
+                    x-init="setTimeout(() => show = true, 200)"
                 >
-                    <h1 class="text-4xl font-bold text-[#231F20] dark:text-white mb-2">
-                        {{ __('My Ideas') }}
-                    </h1>
-                    <p class="text-lg text-[#9B9EA4] dark:text-zinc-400 max-w-2xl mx-auto">
-                        {{ __('View and manage all your submitted innovation ideas') }}
-                    </p>
+                    <div 
+                        x-show="show"
+                        x-transition:enter="transition ease-out duration-700"
+                        x-transition:enter-start="opacity-0 translate-x-4"
+                        x-transition:enter-end="opacity-100 translate-x-0"
+                    >
+                        <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#231F20] dark:text-white tracking-tight">
+                            {{ __('My Ideas') }}
+                        </h1>
+                        <p class="mt-2 text-base sm:text-lg text-[#9B9EA4] dark:text-zinc-400">
+                            {{ __('View and manage all your submitted innovation ideas') }}
+                        </p>
+                    </div>
                 </div>
             </div>
             
