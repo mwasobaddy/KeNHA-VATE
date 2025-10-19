@@ -37,9 +37,19 @@ new #[Layout('components.layouts.app')] class extends Component {
             abort(404);
         }
 
-        // Ensure the user owns this idea
-        if ($ideaModel->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized');
+        // Check if this is a public view (no auth required for collaborative ideas)
+        $isPublicView = request()->route() && str_contains(request()->route()->getName(), 'public');
+
+        if ($isPublicView) {
+            // For public views, allow access if idea is collaborative and submitted
+            if (!$ideaModel->collaboration_enabled || $ideaModel->status !== 'submitted') {
+                abort(404, 'Idea not found or not available for public viewing');
+            }
+        } else {
+            // For authenticated views, ensure the user owns this idea
+            if ($ideaModel->user_id !== Auth::id()) {
+                abort(403, 'Unauthorized');
+            }
         }
 
         // Load relationships AND count active comments
@@ -70,11 +80,17 @@ new #[Layout('components.layouts.app')] class extends Component {
     }
 
     /**
-     * Go back to ideas table
+     * Go back to ideas table or public ideas
      */
     public function backToIdeas(): void
     {
-        $this->redirect(route('ideas.table'), navigate: true);
+        $isPublicView = request()->route() && str_contains(request()->route()->getName(), 'public');
+
+        if ($isPublicView) {
+            $this->redirect(route('ideas.public'), navigate: true);
+        } else {
+            $this->redirect(route('ideas.table'), navigate: true);
+        }
     }
 
     /**
@@ -105,7 +121,10 @@ new #[Layout('components.layouts.app')] class extends Component {
                     </flux:button>
                 </div>
                 <div>
-                    @if(in_array($idea->status, ['draft', 'submitted']))
+                    @php
+                        $isPublicView = request()->route() && str_contains(request()->route()->getName(), 'public');
+                    @endphp
+                    @if(in_array($idea->status, ['draft', 'submitted']) && !$isPublicView)
                         <flux:button
                             icon="pencil-square"
                             wire:click="editIdea"
