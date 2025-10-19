@@ -25,6 +25,12 @@ class RolePermissionSeeder extends Seeder
             'manage users',
             'manage roles',
             'manage permissions',
+
+            // created based on application needs
+            // idea
+            'review_ideas',
+            'delete_ideas', //admin and manager only
+            
         ];
 
         foreach ($permissions as $permission) {
