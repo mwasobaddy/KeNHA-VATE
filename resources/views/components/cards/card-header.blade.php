@@ -61,7 +61,7 @@
             @endif
 
             @if(!empty($meta))
-                <div class="flex items-center space-x-4 mt-2">
+                <div class="flex flex-wrap items-center space-x-4 mt-2">
                     @foreach($meta as $item)
                         <div class="flex items-center text-xs text-[#9B9EA4] dark:text-zinc-400">
                             @if(isset($item['icon']))

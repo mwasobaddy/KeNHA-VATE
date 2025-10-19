@@ -6,7 +6,7 @@
 ])
 
 @php
-    $footerClasses = 'flex items-center justify-between px-6 pt-4 pb-6 border-t border-[#E6E8EB] dark:border-zinc-700 ' . $class;
+    $footerClasses = 'flex flex-col gap-4 items-center justify-between px-6 pt-4 pb-6 border-t border-[#E6E8EB] dark:border-zinc-700 ' . $class;
 @endphp
 
 @if(!empty($actions) || !empty($meta) || $slot->isNotEmpty())
@@ -29,8 +29,8 @@
         </div>
 
         @if(!empty($actions))
-            <div class="flex-shrink-0">
-                <x-cards.card-actions :actions="$actions" justify="justify-end" />
+            <div class="flex-shrink-0 w-full">
+                <x-cards.card-actions :actions="$actions" justify="justify-between" class="" />
             </div>
         @endif
     </div>

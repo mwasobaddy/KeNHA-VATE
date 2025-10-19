@@ -13,7 +13,7 @@
 ])
 
 @php
-    $cardClasses = 'bg-white dark:bg-zinc-800 border transition-all duration-200';
+    $cardClasses = 'flex flex-col bg-white dark:bg-zinc-800 border transition-all duration-200';
 
     if ($hover) {
         $cardClasses .= ' hover:shadow-xl hover:-translate-y-1 hover:border-[#FFF200]/50 dark:hover:border-yellow-400/50';
