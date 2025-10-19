@@ -404,8 +404,9 @@ new #[Layout('components.layouts.app')] class extends Component {
 };
 ?>
 
-<div class="backdrop-blur-lg min-h-screen bg-gradient-to-br from-[#F8EBD5]/20 via-white to-[#F8EBD5] dark:from-zinc-900/20 dark:via-zinc-800 dark:to-zinc-900 border border-zinc-200 dark:border-yellow-400 rounded-3xl py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-7xl mx-auto space-y-8">
+
+<div class="backdrop-blur-lg">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 border border-zinc-200 dark:border-yellow-400 rounded-3xl bg-gradient-to-br from-[#F8EBD5]/20 via-white to-[#F8EBD5] dark:from-zinc-900/20 dark:via-zinc-800 dark:to-zinc-900 border">
 
         <!-- Header Section -->
         <div class="mb-8 sm:mb-12">
@@ -456,7 +457,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                     icon="arrow-path"
                     wire:click="$refresh"
                     variant="primary"
-                    class="bg-green-600 hover:bg-green-400 text-[#231F20] dark:bg-green-500 dark:hover:bg-green-600"
+                    color="pink"
                 >
                     <span>{{ __('Refresh') }}</span>
                 </flux:button>
@@ -465,7 +466,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                     icon="arrow-down-tray"
                     wire:click=""
                     variant="primary"
-                    class="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600"
+                    color="cyan"
                 >
                     <span>{{ __('Export All') }}</span>
                 </flux:button>
@@ -486,7 +487,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                     icon="arrow-path"
                     wire:click="$refresh"
                     variant="primary"
-                    class="bg-green-600 hover:bg-green-400 text-[#231F20] dark:bg-green-500 dark:hover:bg-green-600"
+                    color="pink"
                 >
                 </flux:button>
 
@@ -494,7 +495,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                     icon="arrow-down-tray"
                     wire:click=""
                     variant="primary"
-                    class="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600"
+                    color="cyan"
                 >
                 </flux:button>
                 
@@ -536,6 +537,7 @@ new #[Layout('components.layouts.app')] class extends Component {
             :perPage="$perPage"
             :showBulkActions="count($selectedIdeas) > 0"
             :selectedCount="count($selectedIdeas)"
+            class="mb-6"
         >
             <!-- Status Filter -->
             <x-slot name="filters">
