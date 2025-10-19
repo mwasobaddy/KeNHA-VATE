@@ -829,7 +829,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     {{-- Delete Confirmation Modal --}}
     <x-table.delete-modal
-        wire-model="showDeleteModal"
+        model="showDeleteModal"
         :idea="$deleteIdeaId ? \App\Models\Idea::where('user_id', Auth::id())->find($deleteIdeaId) : null"
         wire-soft-delete="$deleteIdeaId ? 'softDeleteIdea' : 'softDeleteSelected'"
         wire-permanent-delete="$deleteIdeaId ? 'permanentDeleteIdea' : 'permanentDeleteSelected'"

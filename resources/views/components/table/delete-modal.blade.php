@@ -13,7 +13,7 @@
     'permanentDeleteText' => 'Delete Permanently',
     'softDeleteDescription' => 'This item will be moved to trash and can be restored later.',
     'permanentDeleteDescription' => 'This action cannot be undone. This will permanently delete the item.',
-    'wireModel' => 'showDeleteModal',
+    'model' => 'showDeleteModal',
     'wireSoftDelete' => null,
     'wirePermanentDelete' => null,
     'wireCancel' => null,
@@ -57,7 +57,7 @@
     }
 @endphp
 
-<flux:modal name="{{ $id }}" :open="$wireModel" class="{{ $modalSize }}">
+<flux:modal name="{{ $id }}" wire:model="{{ $model }}" class="{{ $modalSize }}">
     <div class="space-y-6">
         {{-- Header --}}
         <div class="flex items-center gap-3">
