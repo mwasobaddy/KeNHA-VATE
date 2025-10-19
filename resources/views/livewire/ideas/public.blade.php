@@ -127,30 +127,115 @@ new #[Layout('components.layouts.app')] class extends Component {
             default => 'Unknown'
         };
     }
+
+    /**
+     * Toggle like for an idea
+     */
+    public function toggleLike(int $ideaId): void
+    {
+        // Ensure user is authenticated
+        if (!auth()->check()) {
+            session()->flash('error', 'Please login to like ideas.');
+            return;
+        }
+
+        $idea = Idea::findOrFail($ideaId);
+        $userId = auth()->id();
+
+        $existingLike = $idea->likes()->where('user_id', $userId)->first();
+
+        if ($existingLike) {
+            // Unlike: remove the like
+            $existingLike->delete();
+        } else {
+            // Like: create new like
+            $idea->likes()->create(['user_id' => $userId]);
+        }
+
+        // No need to update likedIdeas array since isLiked() checks database directly
+    }
+
+    /**
+     * Check if an idea is liked by current user
+     */
+    public function isLiked(int $ideaId): bool
+    {
+        if (!auth()->check()) {
+            return false;
+        }
+
+        return \App\Models\IdeaLike::where('user_id', auth()->id())
+            ->where('idea_id', $ideaId)
+            ->exists();
+    }
 }; ?>
 
-<div class="space-y-6">
+<div class="backdrop-blur-lg min-h-screen bg-gradient-to-br from-[#F8EBD5]/20 via-white to-[#F8EBD5] dark:from-zinc-900/20 dark:via-zinc-800 dark:to-zinc-900 border border-zinc-200 dark:border-yellow-400 rounded-3xl py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto space-y-8">
     {{-- Header --}}
-    <div class="border-b border-[#E6E8EB] dark:border-zinc-700 pb-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-3xl font-bold text-[#231F20] dark:text-white">
-                    Public Ideas for Collaboration
-                </h1>
-                <p class="mt-2 text-[#9B9EA4] dark:text-zinc-400">
-                    Discover innovative ideas from the KeNHA community that are open for collaboration and contribution.
-                </p>
-            </div>
-            <div class="text-right">
-                <div class="text-2xl font-bold text-[#2563EB]">
-                    {{ $this->getIdeas()->total() }}
+            <!-- Header Section -->
+        <div class="mb-8 sm:mb-12">
+            <div class="flex flex-row items-start sm:items-center gap-4 sm:gap-6">
+                <!-- Animated Icon Badge -->
+                <div 
+                    x-data="{ show: false }" 
+                    x-init="setTimeout(() => show = true, 100)"
+                    x-show="show"
+                    x-transition:enter="transition ease-out duration-500 delay-100"
+                    x-transition:enter-start="opacity-0 scale-75 -rotate-12"
+                    x-transition:enter-end="opacity-100 scale-100 rotate-0"
+                    class="flex-shrink-0"
+                >
+                    <div class="relative">
+                        <div class="absolute inset-0 bg-[#FFF200]/20 dark:bg-yellow-400/20 rounded-2xl blur-xl"></div>
+                        <div class="relative flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-[#FFF200] via-yellow-300 to-yellow-400 dark:from-yellow-400 dark:via-yellow-500 dark:to-yellow-600 shadow-lg">
+                            <flux:icon name="users" class="w-8 h-8 sm:w-10 sm:h-10 text-[#231F20] dark:text-zinc-900" />
+                        </div>
+                    </div>
                 </div>
-                <div class="text-sm text-[#9B9EA4] dark:text-zinc-400">
-                    Ideas Available
+
+                <!-- Header Text with staggered animation -->
+                <div 
+                    class="flex-1"
+                    x-data="{ show: false }" 
+                    x-init="setTimeout(() => show = true, 200)"
+                >
+                    <div 
+                        x-show="show"
+                        x-transition:enter="transition ease-out duration-700"
+                        x-transition:enter-start="opacity-0 translate-x-4"
+                        x-transition:enter-end="opacity-100 translate-x-0"
+                    >
+                        <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#231F20] dark:text-white tracking-tight">
+                            Public Ideas for Collaboration
+                        </h1>
+                        <p class="mt-2 text-base sm:text-lg text-[#9B9EA4] dark:text-zinc-400">
+                            Discover innovative ideas from the KeNHA community that are open for collaboration and contribution.
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+
+        {{-- Public Ideas Stats Cards --}}
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
+                <h2 class="text-sm font-medium text-[#9B9EA4] dark:text-zinc-400">Total Collaborative Ideas</h2>
+                <p class="mt-1 text-3xl font-semibold text-[#231F20] dark:text-white">{{ \App\Models\Idea::where('collaboration_enabled', true)->where('status', 'submitted')->count() }}</p>
+            </div>
+            <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
+                <h2 class="text-sm font-medium text-[#9B9EA4] dark:text-zinc-400">Active Thematic Areas</h2>
+                <p class="mt-1 text-3xl font-semibold text-[#231F20] dark:text-white">{{ $this->getThematicAreas()->count() }}</p>
+            </div>
+            <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
+                <h2 class="text-sm font-medium text-[#9B9EA4] dark:text-zinc-400">Total Contributors</h2>
+                <p class="mt-1 text-3xl font-semibold text-[#231F20] dark:text-white">{{ \App\Models\Idea::where('collaboration_enabled', true)->where('status', 'submitted')->distinct('user_id')->count() }}</p>
+            </div>
+            <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
+                <h2 class="text-sm font-medium text-[#9B9EA4] dark:text-zinc-400">Total Comments</h2>
+                <p class="mt-1 text-3xl font-semibold text-[#231F20] dark:text-white">{{ \App\Models\Comment::whereHas('idea', function($query) { $query->where('collaboration_enabled', true)->where('status', 'submitted'); })->where('comment_is_disabled', false)->count() }}</p>
+            </div>
+        </div>
 
     {{-- Filters --}}
     <x-cards.filters
@@ -193,7 +278,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                             ? 'bg-[#2563EB] text-white'
                             : 'text-[#9B9EA4] dark:text-zinc-400 hover:text-[#231F20] dark:hover:text-white hover:bg-gray-50 dark:hover:bg-zinc-900' }}"
                 >
-                    Date {{ $sortField === 'created_at' ? ($sortDirection === 'asc' ? '↑' : '↓') : '' }}
+                    Date {{ $sortField === 'created_at' ? ($sortDirection === 'asc' ? '↑' : '↓') : '↑↓' }}
                 </button>
                 <button
                     wire:click="sortBy('idea_title')"
@@ -202,7 +287,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                             ? 'bg-[#2563EB] text-white'
                             : 'text-[#9B9EA4] dark:text-zinc-400 hover:text-[#231F20] dark:hover:text-white hover:bg-gray-50 dark:hover:bg-zinc-900' }}"
                 >
-                    Title {{ $sortField === 'idea_title' ? ($sortDirection === 'asc' ? '↑' : '↓') : '' }}
+                    Title {{ $sortField === 'idea_title' ? ($sortDirection === 'asc' ? '↑' : '↓') : '↑↓' }}
                 </button>
                 <button
                     wire:click="sortBy('comments_count')"
@@ -211,7 +296,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                             ? 'bg-[#2563EB] text-white'
                             : 'text-[#9B9EA4] dark:text-zinc-400 hover:text-[#231F20] dark:hover:text-white hover:bg-gray-50 dark:hover:bg-zinc-900' }}"
                 >
-                    Comments {{ $sortField === 'comments_count' ? ($sortDirection === 'asc' ? '↑' : '↓') : '' }}
+                    Comments {{ $sortField === 'comments_count' ? ($sortDirection === 'asc' ? '↑' : '↓') : '↑↓' }}
                 </button>
             </div>
         </div>
@@ -228,7 +313,7 @@ new #[Layout('components.layouts.app')] class extends Component {
         :empty="!$this->getIdeas()->count()"
         empty-title="No collaborative ideas found"
         empty-description="There are currently no ideas available for collaboration. Check back later or submit your own idea!"
-        :columns="'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'"
+        :columns="'grid-cols-1 md:grid-cols-2'"
     >
         @foreach($this->getIdeas() as $idea)
             <x-cards.card
@@ -240,19 +325,19 @@ new #[Layout('components.layouts.app')] class extends Component {
             >
                 <x-cards.card-header
                     :title="$idea->idea_title"
-                    :subtitle="'By ' . ($idea->user->staff?->first_name ? $idea->user->staff->first_name . ' ' . ($idea->user->staff->other_names ?? '') : $idea->user->email)"
+                    :subtitle="'By ' . ($idea->user->first_name ? $idea->user->first_name . ' ' . ($idea->user->other_names ?? '') : $idea->user->email)"
                     :badge="[
                         'text' => $this->getStatusText($idea->status),
                         'variant' => $this->getStatusBadgeVariant($idea->status)
                     ]"
                     :meta="[
                         ['icon' => 'calendar', 'text' => $idea->created_at->format('M j, Y')],
-                        ['icon' => 'chat-bubble-left-ellipsis', 'text' => $idea->comments_count . ' comments'],
+                        ['icon' => 'chat-bubble-left-right', 'text' => $idea->comments_count . ' comments'],
                         ['icon' => 'users', 'text' => 'Open for collaboration']
                     ]"
                 />
 
-                <x-cards.card-body>
+                <x-cards.card-body class="flex-1">
                     <div class="space-y-3">
                         @if($idea->thematicArea)
                             <div class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#FFF200] text-[#231F20]">
@@ -276,24 +361,56 @@ new #[Layout('components.layouts.app')] class extends Component {
                     </div>
                 </x-cards.card-body>
 
-                <x-cards.card-footer
-                    :meta="[
-                        ['icon' => 'eye', 'text' => 'Click to view details'],
-                        ['icon' => 'users', 'text' => 'Open for collaboration']
-                    ]"
-                    :actions="[
-                        [
-                            'text' => 'View Details',
-                            'variant' => 'primary',
-                            'wireClick' => 'viewIdea(\'' . $idea->slug . '\')'
-                        ],
-                        [
-                            'text' => 'Learn More',
-                            'variant' => 'ghost',
-                            'href' => route('ideas.public.show', ['idea' => $idea->slug])
-                        ]
-                    ]"
-                />
+                <!-- Custom Footer with Like Functionality -->
+                <div class="px-6 py-4 border-t border-gray-200 dark:border-zinc-700">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <!-- Like Button -->
+                            @if(auth()->check())
+                                <button
+                                    wire:click="toggleLike({{ $idea->id }})"
+                                    class="flex items-center space-x-1 text-sm transition-colors duration-200 hover:scale-105
+                                        {{ $this->isLiked($idea->id)
+                                            ? 'text-red-600'
+                                            : 'text-red-600' }}"
+                                >
+                                    <flux:icon
+                                        name="heart"
+                                        class="h-4 w-4 {{ $this->isLiked($idea->id) ? 'fill-current' : '' }}"
+                                    />
+                                    <span>{{ $idea->likes_count }}</span>
+                                </button>
+                            @else
+                                <button
+                                    onclick="window.location.href='{{ route('login') }}'"
+                                    class="flex items-center space-x-1 text-sm transition-colors duration-200 hover:scale-105 text-gray-400 hover:text-gray-500 dark:text-zinc-500 dark:hover:text-zinc-400 cursor-pointer"
+                                    title="Login to like this idea"
+                                >
+                                    <flux:icon name="heart" class="h-4 w-4" />
+                                    <span>{{ $idea->likes_count }}</span>
+                                </button>
+                            @endif
+
+                            <!-- Comments -->
+                            <div class="flex items-center space-x-1 text-sm text-gray-500 dark:text-zinc-400">
+                                <flux:icon name="chat-bubble-left-right" class="h-4 w-4" />
+                                <span>{{ $idea->comments_count }}</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center space-x-2">
+                            <flux:button
+                                icon="eye"
+                                size="sm"
+                                variant="primary"
+                                color="blue"
+                                wire:click="viewIdea('{{ $idea->slug }}')"
+                            >
+                                View Details
+                            </flux:button>
+                        </div>
+                    </div>
+                </div>
             </x-cards.card>
         @endforeach
     </x-cards.card-grid>
@@ -303,4 +420,46 @@ new #[Layout('components.layouts.app')] class extends Component {
         :paginator="$this->getIdeas()"
         :per-page-options="[12, 24, 48]"
     />
+
+    <style>
+        /* Custom Scrollbar for better UX */
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #F8EBD5;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #FFF200;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #F4E000;
+        }
+
+        .dark ::-webkit-scrollbar-track {
+            background: #374151;
+        }
+
+        .dark ::-webkit-scrollbar-thumb {
+            background: #F59E0B;
+        }
+
+        .dark ::-webkit-scrollbar-thumb:hover {
+            background: #D97706;
+        }
+
+        /* Smooth transitions for all interactive elements */
+        * {
+            transition: all 0.2s ease-in-out;
+        }
+
+        /* Input focus enhancement */
+        input:focus, select:focus {
+            box-shadow: 0 0 0 3px rgba(255, 242, 0, 0.1);
+        }
+    </style>
 </div>
