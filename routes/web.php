@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 use Livewire\Volt\Volt;
+use App\Http\Controllers\PdfController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -17,6 +18,8 @@ Route::middleware(['auth', 'check.session.validity', 'check.account.status', 'ch
     Volt::route('ideas/my-ideas', 'ideas.table')->name('ideas.table');
     Volt::route('ideas/show/{idea}', 'ideas.show')->name('ideas.show')->where('idea', '[a-zA-Z0-9-]+');
     Volt::route('ideas/comments/{idea}/{comment?}', 'ideas.comments')->name('ideas.comments')->where(['idea' => '[a-zA-Z0-9-]+', 'comment' => '[0-9]+']);
+    Volt::route('ideas/pdf-viewer/{idea}', 'ideas.pdf-viewer')->name('ideas.pdf-viewer')->where('idea', '[a-zA-Z0-9-]+');
+    Route::get('ideas/pdf/{idea}', [PdfController::class, 'download'])->name('ideas.pdf')->where('idea', '[a-zA-Z0-9-]+');
 });
 
 Route::middleware(['auth', 'check.session.validity'])->group(function () {
