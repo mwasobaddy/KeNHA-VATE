@@ -99,6 +99,14 @@ new #[Layout('components.layouts.app')] class extends Component {
     }
 
     /**
+     * View idea comments
+     */
+    public function viewComments(string $slug): void
+    {
+        $this->redirect(route('ideas.public.show', ['idea' => $slug]) . '#comments', navigate: true);
+    }
+
+    /**
      * Get status badge variant
      */
     public function getStatusBadgeVariant(string $status): string
@@ -167,6 +175,22 @@ new #[Layout('components.layouts.app')] class extends Component {
         return \App\Models\IdeaLike::where('user_id', auth()->id())
             ->where('idea_id', $ideaId)
             ->exists();
+    }
+
+    /**
+     * View idea details
+     */
+    public function viewIdea(string $slug): void
+    {
+        $this->redirect(route('ideas.public.show', ['idea' => $slug]), navigate: true);
+    }
+
+    /**
+     * View idea comments
+     */
+    public function viewComments(string $slug): void
+    {
+        $this->redirect(route('ideas.public.show', ['idea' => $slug]) . '#comments', navigate: true);
     }
 }; ?>
 
@@ -399,6 +423,16 @@ new #[Layout('components.layouts.app')] class extends Component {
                         </div>
 
                         <div class="flex items-center space-x-2">
+                            <flux:button
+                                icon="chat-bubble-left-right"
+                                size="sm"
+                                variant="ghost"
+                                color="gray"
+                                wire:click="viewComments('{{ $idea->slug }}')"
+                                title="View comments for this idea"
+                            >
+                                Comments
+                            </flux:button>
                             <flux:button
                                 icon="eye"
                                 size="sm"
