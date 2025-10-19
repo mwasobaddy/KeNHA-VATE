@@ -178,8 +178,9 @@ new #[Layout('components.layouts.app')] class extends Component {
     }
 }; ?>
 
-<div class="backdrop-blur-lg min-h-screen bg-gradient-to-br from-[#F8EBD5]/20 via-white to-[#F8EBD5] dark:from-zinc-900/20 dark:via-zinc-800 dark:to-zinc-900 border border-zinc-200 dark:border-yellow-400 rounded-3xl py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-7xl mx-auto space-y-8">
+
+<div class="backdrop-blur-lg">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 border border-zinc-200 dark:border-yellow-400 rounded-3xl bg-gradient-to-br from-[#F8EBD5]/20 via-white to-[#F8EBD5] dark:from-zinc-900/20 dark:via-zinc-800 dark:to-zinc-900 border">
     {{-- Header --}}
             <!-- Header Section -->
         <div class="mb-8 sm:mb-12">
@@ -410,10 +411,10 @@ new #[Layout('components.layouts.app')] class extends Component {
                             <flux:button
                                 icon="chat-bubble-left-right"
                                 size="sm"
-                                variant="ghost"
-                                color="gray"
+                                variant="primary"
                                 wire:click="viewComments('{{ $idea->slug }}')"
                                 title="View comments for this idea"
+                                class="bg-[#FFF200] hover:bg-[#FFF200]/90 dark:bg-yellow-400 dark:hover:bg-yellow-300 text-[#231F20] dark:text-zinc-900 transition-all duration-200"
                             >
                                 Comments
                             </flux:button>
