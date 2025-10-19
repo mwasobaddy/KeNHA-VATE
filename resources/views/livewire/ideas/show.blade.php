@@ -7,14 +7,35 @@ use App\Models\Idea;
 use Illuminate\Support\Facades\Auth;
 
 new #[Layout('components.layouts.app')] class extends Component {
-    public Idea $idea;
+    public $idea;
 
     /**
      * Mount the component with the idea
      */
-    public function mount(string $idea): void
+    public function mount($idea = null): void
     {
-        $ideaModel = Idea::where('slug', $idea)->firstOrFail();
+        // Diagnostic log for incoming param and current user
+        \Log::info('show.mount called', ['incoming' => $idea, 'user_id' => Auth::id()]);
+
+        // Try exact slug match first
+        $ideaModel = Idea::where('slug', $idea)->first();
+
+        // Fallback: case-insensitive slug match (SQLite/MySQL collations differ)
+        if (!$ideaModel) {
+            $lower = mb_strtolower($idea);
+            $ideaModel = Idea::whereRaw('lower(slug) = ?', [$lower])->first();
+        }
+
+        // Fallback: if the incoming param is numeric, try id lookup
+        if (!$ideaModel && is_numeric($idea)) {
+            $ideaModel = Idea::find((int) $idea);
+        }
+
+        // Ensure the $idea property is always set in the mount method
+        if (!$ideaModel) {
+            \Log::warning('show.mount: idea not found after fallbacks', ['incoming' => $idea]);
+            abort(404);
+        }
 
         // Ensure the user owns this idea
         if ($ideaModel->user_id !== Auth::id()) {
@@ -31,15 +52,15 @@ new #[Layout('components.layouts.app')] class extends Component {
     {
         if (in_array($this->idea->status, ['draft', 'submitted'])) {
             if ($this->idea->status === 'draft') {
-                return redirect()->route('ideas.edit_draft.draft', ['draft' => $this->idea->slug]);
+                $this->redirect(route('ideas.edit_draft.draft', ['draft' => $this->idea->slug]), navigate: true);
             } else {
                 // For submitted ideas, convert back to draft for editing
                 $this->idea->update(['status' => 'draft']);
-                return redirect()->route('ideas.edit_draft.draft', ['draft' => $this->idea->slug]);
+                $this->redirect(route('ideas.edit_draft.draft', ['draft' => $this->idea->slug]), navigate: true);
             }
+        } else {
+            session()->flash('error', 'This idea cannot be edited as it has reached the final review stage.');
         }
-
-        session()->flash('error', 'This idea cannot be edited as it has reached the final review stage.');
     }
 
     /**
@@ -47,16 +68,26 @@ new #[Layout('components.layouts.app')] class extends Component {
      */
     public function backToIdeas(): void
     {
-        return redirect()->route('ideas.table');
+        $this->redirect(route('ideas.table'), navigate: true);
+    }
+
+    /**
+     * Download the idea PDF
+     */
+    public function downloadPdf($slug): void
+    {
+        $url = route('ideas.pdf', $slug);
+        $this->js("window.open('{$url}', '_blank')");
     }
 };
 ?>
 
-<div class="backdrop-blur-lg min-h-screen bg-gradient-to-br from-[#F8EBD5]/20 via-white to-[#F8EBD5] dark:from-zinc-900/20 dark:via-zinc-800 dark:to-zinc-900 border border-zinc-200 dark:border-yellow-400 rounded-3xl py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-5xl mx-auto space-y-8">
+
+<div class="backdrop-blur-lg">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 border border-zinc-200 dark:border-yellow-400 rounded-3xl bg-gradient-to-br from-[#F8EBD5]/20 via-white to-[#F8EBD5] dark:from-zinc-900/20 dark:via-zinc-800 dark:to-zinc-900 border">
 
         <!-- Header Section -->
-        <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
+        <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6 mb-6">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-4">
                     <flux:button
@@ -73,22 +104,26 @@ new #[Layout('components.layouts.app')] class extends Component {
                     </div>
 
                     <div>
-                        <h1 class="text-3xl font-bold text-[#231F20] dark:text-white">
-                            {{ $idea->idea_title }}
-                        </h1>
-                        <div class="flex items-center gap-4 mt-2">
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                @if($idea->status === 'draft') bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400
-                                @elseif($idea->status === 'submitted') bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400
-                                @elseif($idea->status === 'in_review') bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400
-                                @else bg-gray-100 dark:bg-gray-900/20 text-gray-800 dark:text-gray-400
-                                @endif">
-                                {{ ucfirst($idea->status) }}
-                            </span>
-                            <span class="text-sm text-[#9B9EA4] dark:text-zinc-400">
-                                Created {{ $idea->created_at->format('M j, Y \a\t g:i A') }}
-                            </span>
-                        </div>
+                        @if(isset($idea))
+                            <h1 class="text-3xl font-bold text-[#231F20] dark:text-white">
+                                {{ $idea->idea_title }}
+                            </h1>
+                            <div class="flex items-center gap-4 mt-2">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                    @if($idea->status === 'draft') bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400
+                                    @elseif($idea->status === 'submitted') bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400
+                                    @elseif($idea->status === 'in_review') bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400
+                                    @else bg-gray-100 dark:bg-gray-900/20 text-gray-800 dark:text-gray-400
+                                    @endif">
+                                    {{ ucfirst($idea->status) }}
+                                </span>
+                                <span class="text-sm text-[#9B9EA4] dark:text-zinc-400">
+                                    Created {{ $idea->created_at->format('M j, Y \a\t g:i A') }}
+                                </span>
+                            </div>
+                        @else
+                            <p class="text-red-500">Idea not found or inaccessible.</p>
+                        @endif
                     </div>
                 </div>
 
@@ -119,45 +154,91 @@ new #[Layout('components.layouts.app')] class extends Component {
                     </p>
                 </div>
 
-                <!-- Description -->
-                @if($idea->description)
+                <!-- Problem Statement -->
+                @if($idea->problem_statement)
                     <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
-                        <h2 class="text-xl font-semibold text-[#231F20] dark:text-white mb-4">Description</h2>
+                        <h2 class="text-xl font-semibold text-[#231F20] dark:text-white mb-4">Problem Statement</h2>
                         <div class="text-[#9B9EA4] dark:text-zinc-400 leading-relaxed prose prose-sm max-w-none dark:prose-invert">
-                            {!! nl2br(e($idea->description)) !!}
+                            {!! nl2br(e($idea->problem_statement)) !!}
                         </div>
                     </div>
                 @endif
 
-                <!-- Objectives -->
-                @if($idea->objectives)
+                <!-- Proposed Solution -->
+                @if($idea->proposed_solution)
                     <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
-                        <h2 class="text-xl font-semibold text-[#231F20] dark:text-white mb-4">Objectives</h2>
+                        <h2 class="text-xl font-semibold text-[#231F20] dark:text-white mb-4">Proposed Solution</h2>
                         <div class="text-[#9B9EA4] dark:text-zinc-400 leading-relaxed prose prose-sm max-w-none dark:prose-invert">
-                            {!! nl2br(e($idea->objectives)) !!}
+                            {!! nl2br(e($idea->proposed_solution)) !!}
                         </div>
                     </div>
                 @endif
 
-                <!-- Expected Outcomes -->
-                @if($idea->expected_outcomes)
+                <!-- Cost-Benefit Analysis -->
+                @if($idea->cost_benefit_analysis)
                     <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
-                        <h2 class="text-xl font-semibold text-[#231F20] dark:text-white mb-4">Expected Outcomes</h2>
+                        <h2 class="text-xl font-semibold text-[#231F20] dark:text-white mb-4">Cost-Benefit Analysis</h2>
                         <div class="text-[#9B9EA4] dark:text-zinc-400 leading-relaxed prose prose-sm max-w-none dark:prose-invert">
-                            {!! nl2br(e($idea->expected_outcomes)) !!}
+                            {!! nl2br(e($idea->cost_benefit_analysis)) !!}
                         </div>
                     </div>
                 @endif
 
-                <!-- Implementation Plan -->
-                @if($idea->implementation_plan)
+                <!-- Declaration of Interests -->
+                @if($idea->declaration_of_interests)
                     <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
-                        <h2 class="text-xl font-semibold text-[#231F20] dark:text-white mb-4">Implementation Plan</h2>
+                        <h2 class="text-xl font-semibold text-[#231F20] dark:text-white mb-4">Declaration of Interests</h2>
                         <div class="text-[#9B9EA4] dark:text-zinc-400 leading-relaxed prose prose-sm max-w-none dark:prose-invert">
-                            {!! nl2br(e($idea->implementation_plan)) !!}
+                            {!! nl2br(e($idea->declaration_of_interests)) !!}
                         </div>
                     </div>
                 @endif
+
+                {{-- collabo status, original idea status, team_effort status, status of the idea mini cards --}}
+                <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
+                    <h3 class="text-lg font-semibold text-[#231F20] dark:text-white mb-4">{{ __('More info:') }}</h3>
+                    <div class="space-y-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex items-center space-x-2">
+                            <flux:icon name="users" variant="solid" class="text-[#9B9EA4] dark:text-zinc-400 size-4" />
+                            <span>{{ __('Collaboration:') }}</span>
+                            @if ($idea->collaboration_enabled === true)
+                                <span class="text-green-200 bg-green-900/50 px-4 py-1 rounded-full">{{ __('Yes') }}</span>
+                            @else
+                                <span class="text-red-200 bg-red-900/50 px-4 py-1 rounded-full">{{ __('No') }}</span>
+                            @endif
+                        </div>
+
+                        <div class="flex items-center space-x-2">
+                            <flux:icon name="shield-exclamation" variant="solid" class="text-[#9B9EA4] dark:text-zinc-400 size-4" />
+                            <span>{{ __('Original Idea:') }}</span>
+                            @if ($idea->original_idea_disclaimer === true)
+                                <span class="text-green-200 bg-green-900/50 px-4 py-1 rounded-full">{{ __('Yes') }}</span>
+                            @else
+                                <span class="text-red-200 bg-red-900/50 px-4 py-1 rounded-full">{{ __('No') }}</span>
+                            @endif
+                        </div>
+
+                        <div class="flex items-center space-x-2">
+                            <flux:icon name="users" variant="solid" class="text-[#9B9EA4] dark:text-zinc-400 size-4" />
+                            <span>{{ __('Team Effort:') }}</span>
+                            @if ($idea->team_members !== null)
+                                <span class="text-green-200 bg-green-900/50 px-4 py-1 rounded-full">{{ __('Yes') }}</span>
+                            @else
+                                <span class="text-red-200 bg-red-900/50 px-4 py-1 rounded-full">{{ __('No') }}</span>
+                            @endif
+                        </div>
+
+                        <div class="flex items-center space-x-2">
+                            <flux:icon name="chart-bar-square" variant="solid" class="text-[#9B9EA4] dark:text-zinc-400 size-4" />
+                            <span>{{ __('Idea Status:') }}</span>
+                            @if ($idea->status !== null)
+                                <span class="text-green-200 bg-green-900/50 px-4 py-1 rounded-full">{{ __('Yes') }}</span>
+                            @else
+                                <span class="text-red-200 bg-red-900/50 px-4 py-1 rounded-full">{{ __('No') }}</span>
+                            @endif
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Budget Estimate -->
                 @if($idea->budget_estimate)
@@ -183,6 +264,36 @@ new #[Layout('components.layouts.app')] class extends Component {
 
             <!-- Sidebar -->
             <div class="space-y-6">
+
+                {{-- PDF View using iframe--}}
+                <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
+                    <h3 class="text-lg font-semibold text-[#231F20] dark:text-white mb-3">PDF View</h3>
+                    <div class="flex gap-2 mb-4">
+                        <flux:button
+                            icon="eye"
+                            icon:variant="solid"
+                            wire:click="downloadPdf('{{ $idea->slug }}')"
+                            download="{{ $idea->attachment_filename ?? 'idea.pdf' }}"
+                            {{-- href="{{ route('ideas.pdf-viewer', $idea->slug) }}" --}}
+                            target="_blank"
+                            variant="primary"
+                            size="sm"
+                            class="bg-[#FFF200] hover:bg-yellow-400 text-[#231F20] dark:bg-yellow-500 dark:hover:bg-yellow-600"
+                        >
+                            Preview PDF
+                        </flux:button>
+                        {{-- <flux:button
+                            wire:click="downloadPdf('{{ $idea->slug }}')"
+                            download="{{ $idea->attachment_filename ?? 'idea.pdf' }}"
+                            variant="primary"
+                            size="sm"
+                            class="bg-[#FFF200] hover:bg-yellow-400 text-[#231F20] dark:bg-yellow-500 dark:hover:bg-yellow-600"
+                        >
+                            <flux:icon name="arrow-down-tray" class="w-4 h-4 mr-1" />
+                            Download PDF
+                        </flux:button> --}}
+                    </div>
+                </div>
 
                 <!-- Thematic Area -->
                 <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
@@ -257,7 +368,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                         <flux:button
                             icon="chat-bubble-left-right"
                             wire:click="$redirect('{{ route('ideas.comments', $idea->slug) }}')"
-                            variant="secondary"
+                            variant="primary"
                             class="w-full justify-start"
                         >
                             View Comments
