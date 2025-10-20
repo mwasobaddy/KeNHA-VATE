@@ -5,6 +5,7 @@ use App\Models\Idea;
 use App\Services\RevisionService;
 
 state([
+    'ideaId' => null,
     'selectedRevision' => null,
     'comparisonRevision' => null,
     'showRejectForm' => false,
@@ -32,7 +33,16 @@ $rejectedRevisions = computed(function () {
 });
 
 $revisionStats = computed(function () {
-    return app(RevisionService::class)->getRevisionStats($this->idea);
+    return [
+        'total_revisions' => $this->idea->revisions->count(),
+        'pending_revisions' => $this->pendingRevisions->count(),
+        'accepted_revisions' => $this->acceptedRevisions->count(),
+        'rejected_revisions' => $this->rejectedRevisions->count(),
+    ];
+});
+
+mount(function (Idea $idea) {
+    $this->ideaId = $idea->id;
 });
 
 $acceptRevision = function ($revisionId) {
@@ -43,6 +53,7 @@ $acceptRevision = function ($revisionId) {
     try {
         app(RevisionService::class)->acceptRevision($revision, auth()->user());
         session()->flash('success', 'Revision accepted successfully.');
+        unset($this->idea);
     } catch (\Exception $e) {
         session()->flash('error', 'Failed to accept revision: ' . $e->getMessage());
     }
@@ -61,6 +72,7 @@ $rejectRevision = function ($revisionId) {
         app(RevisionService::class)->rejectRevision($revision, auth()->user(), $validated['rejectReason']);
         $this->reset(['showRejectForm', 'rejectReason']);
         session()->flash('success', 'Revision rejected.');
+        unset($this->idea);
     } catch (\Exception $e) {
         session()->flash('error', 'Failed to reject revision: ' . $e->getMessage());
     }
@@ -73,6 +85,7 @@ $rollbackToRevision = function ($revisionNumber) {
         app(RevisionService::class)->rollbackToRevision($this->idea, $revisionNumber, auth()->user());
         $this->reset(['showRollbackConfirm', 'rollbackToRevision']);
         session()->flash('success', 'Successfully rolled back to revision ' . $revisionNumber);
+        unset($this->idea);
     } catch (\Exception $e) {
         session()->flash('error', 'Failed to rollback: ' . $e->getMessage());
     }
@@ -108,30 +121,30 @@ $canCreateRevisions = computed(function () {
         <h3 class="text-lg font-semibold text-gray-900 mb-4">Revision Overview</h3>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="text-center">
-                <div class="text-2xl font-bold text-blue-600">{{ $revisionStats['total_revisions'] }}</div>
+                <div class="text-2xl font-bold text-blue-600">{{ $this->revisionStats['total_revisions'] }}</div>
                 <div class="text-sm text-gray-500">Total Revisions</div>
             </div>
             <div class="text-center">
-                <div class="text-2xl font-bold text-yellow-600">{{ $revisionStats['pending_revisions'] }}</div>
+                <div class="text-2xl font-bold text-yellow-600">{{ $this->revisionStats['pending_revisions'] }}</div>
                 <div class="text-sm text-gray-500">Pending</div>
             </div>
             <div class="text-center">
-                <div class="text-2xl font-bold text-green-600">{{ $revisionStats['accepted_revisions'] }}</div>
+                <div class="text-2xl font-bold text-green-600">{{ $this->revisionStats['accepted_revisions'] }}</div>
                 <div class="text-sm text-gray-500">Accepted</div>
             </div>
             <div class="text-center">
-                <div class="text-2xl font-bold text-red-600">{{ $revisionStats['rejected_revisions'] }}</div>
+                <div class="text-2xl font-bold text-red-600">{{ $this->revisionStats['rejected_revisions'] }}</div>
                 <div class="text-sm text-gray-500">Rejected</div>
             </div>
         </div>
     </div>
 
     <!-- Pending Revisions -->
-    @if($pendingRevisions->count() > 0 && $canManageRevisions)
+    @if($this->pendingRevisions->count() > 0 && $this->canManageRevisions)
         <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">Pending Revisions</h3>
             <div class="space-y-4">
-                @foreach($pendingRevisions as $revision)
+                @foreach($this->pendingRevisions as $revision)
                     <div class="border rounded-lg p-4">
                         <div class="flex items-start justify-between">
                             <div class="flex-1">
@@ -144,11 +157,11 @@ $canCreateRevisions = computed(function () {
                                         {{ $revision->created_at->diffForHumans() }}
                                     </span>
                                 </div>
-                                @if($revision->summary)
-                                    <p class="text-gray-900 font-medium mb-2">{{ $revision->summary }}</p>
+                                @if($revision->change_summary)
+                                    <p class="text-gray-900 font-medium mb-2">{{ $revision->change_summary }}</p>
                                 @endif
                                 <div class="text-sm text-gray-600">
-                                    <span class="font-medium">{{ count($revision->getChangedFields()) }}</span> field{{ count($revision->getChangedFields()) !== 1 ? 's' : '' }} changed
+                                    <span class="font-medium">{{ is_array($revision->changed_fields) ? count($revision->changed_fields) : 0 }}</span> field{{ (is_array($revision->changed_fields) ? count($revision->changed_fields) : 0) !== 1 ? 's' : '' }} changed
                                 </div>
                             </div>
                             <div class="flex space-x-2 ml-4">
@@ -178,7 +191,7 @@ $canCreateRevisions = computed(function () {
     <div class="bg-white rounded-lg shadow-sm border p-6">
         <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-semibold text-gray-900">Revision History</h3>
-            @if($idea->revisions->count() > 1)
+            @if($this->idea->revisions->count() > 1)
                 <flux:button
                     wire:click="$set('selectedRevision', 'compare')"
                     variant="outline"
@@ -189,9 +202,9 @@ $canCreateRevisions = computed(function () {
             @endif
         </div>
 
-        @if($idea->revisions->count() > 0)
+        @if($this->idea->revisions->count() > 0)
             <div class="space-y-4">
-                @foreach($idea->revisions as $revision)
+                @foreach($this->idea->revisions as $revision)
                     <div class="flex items-start space-x-4">
                         <!-- Timeline line -->
                         <div class="flex flex-col items-center">
@@ -225,7 +238,7 @@ $canCreateRevisions = computed(function () {
                                     </span>
                                 </div>
 
-                                @if($canManageRevisions && $revision->status === 'accepted' && $revision->revision_number < $idea->current_revision_number)
+                                @if($this->canManageRevisions && $revision->status === 'accepted' && $revision->revision_number < $this->idea->current_revision_number)
                                     <flux:button
                                         wire:click="$set('rollbackToRevision', {{ $revision->revision_number }})"
                                         variant="outline"
@@ -242,8 +255,8 @@ $canCreateRevisions = computed(function () {
                                 <span>{{ $revision->created_at->format('M j, Y \a\t g:i A') }}</span>
                             </div>
 
-                            @if($revision->summary)
-                                <p class="mt-2 text-gray-900">{{ $revision->summary }}</p>
+                            @if($revision->change_summary)
+                                <p class="mt-2 text-gray-900">{{ $revision->change_summary }}</p>
                             @endif
 
                             @if($revision->status === 'rejected' && $revision->review_reason)
@@ -254,16 +267,18 @@ $canCreateRevisions = computed(function () {
                                 </div>
                             @endif
 
-                            <div class="mt-2 text-sm text-gray-500">
-                                Changed fields: {{ implode(', ', array_keys($revision->getChangedFields())) }}
-                            </div>
+                            @if(is_array($revision->changed_fields) && count($revision->changed_fields) > 0)
+                                <div class="mt-2 text-sm text-gray-500">
+                                    Changed fields: {{ implode(', ', array_keys($revision->changed_fields)) }}
+                                </div>
+                            @endif
                         </div>
                     </div>
                 @endforeach
             </div>
         @else
             <div class="text-center py-8 text-gray-500">
-                <flux:icon name="git-branch" class="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <flux:icon name="document-text" class="w-12 h-12 mx-auto mb-4 text-gray-300" />
                 <p>No revisions yet</p>
                 <p class="text-sm">Revisions will appear here when collaborators suggest changes</p>
             </div>
@@ -347,7 +362,7 @@ $canCreateRevisions = computed(function () {
                         <flux:label>Revision 1</flux:label>
                         <flux:select wire:model="comparisonRevision">
                             <option value="">Select revision...</option>
-                            @foreach($idea->revisions as $revision)
+                            @foreach($this->idea->revisions as $revision)
                                 <option value="{{ $revision->id }}">
                                     Revision {{ $revision->revision_number }} - {{ $revision->createdByUser->name ?? 'Unknown' }}
                                 </option>
@@ -358,7 +373,7 @@ $canCreateRevisions = computed(function () {
                         <flux:label>Revision 2</flux:label>
                         <flux:select wire:model="comparisonRevision">
                             <option value="">Select revision...</option>
-                            @foreach($idea->revisions as $revision)
+                            @foreach($this->idea->revisions as $revision)
                                 <option value="{{ $revision->id }}">
                                     Revision {{ $revision->revision_number }} - {{ $revision->createdByUser->name ?? 'Unknown' }}
                                 </option>
