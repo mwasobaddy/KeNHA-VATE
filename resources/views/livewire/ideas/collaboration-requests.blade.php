@@ -10,16 +10,20 @@ state([
     'respondingToRequest' => null,
 ]);
 
-$pendingRequests = IdeaCollaborationRequest::where('invitee_id', auth()->id())
-    ->where('status', 'pending')
-    ->with(['idea.user', 'inviter'])
-    ->orderBy('created_at', 'desc')
-    ->get();
+$pendingRequests = computed(function () {
+    return IdeaCollaborationRequest::where('invitee_id', auth()->id())
+        ->where('status', 'pending')
+        ->with(['idea.user', 'inviter'])
+        ->orderBy('created_at', 'desc')
+        ->get();
+});
 
-$sentRequests = IdeaCollaborationRequest::where('inviter_id', auth()->id())
-    ->with(['idea.user', 'invitee'])
-    ->orderBy('created_at', 'desc')
-    ->get();
+$sentRequests = computed(function () {
+    return IdeaCollaborationRequest::where('inviter_id', auth()->id())
+        ->with(['idea.user', 'invitee'])
+        ->orderBy('created_at', 'desc')
+        ->get();
+});
 
 $acceptRequest = function ($requestId) {
     $request = IdeaCollaborationRequest::findOrFail($requestId);
@@ -58,8 +62,13 @@ $declineRequest = function ($requestId) {
     }
 };
 
-$canRespondToRequests = auth()->user()->can('respond_to_collaboration_requests');
-$canViewCollaborationRequests = auth()->user()->can('view_collaboration_requests');
+$canRespondToRequests = computed(function () {
+    return auth()->user()->can('respond_to_collaboration_requests');
+});
+
+$canViewCollaborationRequests = computed(function () {
+    return auth()->user()->can('view_collaboration_requests');
+});
 
 ?>
 
@@ -73,13 +82,13 @@ $canViewCollaborationRequests = auth()->user()->can('view_collaboration_requests
             </div>
             <div class="flex items-center space-x-4">
                 <div class="text-sm text-gray-500">
-                    {{ $pendingRequests->count() }} pending invitation{{ $pendingRequests->count() !== 1 ? 's' : '' }}
+                    {{ $this->pendingRequests->count() }} pending invitation{{ $this->pendingRequests->count() !== 1 ? 's' : '' }}
                 </div>
             </div>
         </div>
     </div>
 
-    @if(!$canViewCollaborationRequests)
+    @if(!$this->canViewCollaborationRequests)
         <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <div class="flex">
                 <flux:icon name="exclamation-triangle" class="w-5 h-5 text-yellow-400" />
@@ -93,11 +102,11 @@ $canViewCollaborationRequests = auth()->user()->can('view_collaboration_requests
         </div>
     @else
         <!-- Pending Invitations -->
-        @if($pendingRequests->count() > 0)
+        @if($this->pendingRequests->count() > 0)
             <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
                 <h2 class="text-lg font-semibold text-gray-900 mb-4">Pending Invitations</h2>
                 <div class="space-y-4">
-                    @foreach($pendingRequests as $request)
+                    @foreach($this->pendingRequests as $request)
                         <div class="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
                             <div class="flex items-start justify-between">
                                 <div class="flex-1">
@@ -130,7 +139,7 @@ $canViewCollaborationRequests = auth()->user()->can('view_collaboration_requests
                                     </div>
                                 </div>
 
-                                @if($canRespondToRequests)
+                                @if($this->canRespondToRequests)
                                     <div class="flex space-x-2 ml-4">
                                         <flux:button
                                             wire:click="acceptRequest({{ $request->id }})"
@@ -156,11 +165,11 @@ $canViewCollaborationRequests = auth()->user()->can('view_collaboration_requests
         @endif
 
         <!-- Sent Requests -->
-        @if($sentRequests->count() > 0)
+        @if($this->sentRequests->count() > 0)
             <div class="bg-white rounded-lg shadow-sm border p-6">
                 <h2 class="text-lg font-semibold text-gray-900 mb-4">Sent Invitations</h2>
                 <div class="space-y-4">
-                    @foreach($sentRequests as $request)
+                    @foreach($this->sentRequests as $request)
                         <div class="border rounded-lg p-4">
                             <div class="flex items-start justify-between">
                                 <div class="flex-1">
@@ -222,7 +231,7 @@ $canViewCollaborationRequests = auth()->user()->can('view_collaboration_requests
         @endif
 
         <!-- Empty State -->
-        @if($pendingRequests->count() === 0 && $sentRequests->count() === 0)
+        @if($this->pendingRequests->count() === 0 && $this->sentRequests->count() === 0)
             <div class="bg-white rounded-lg shadow-sm border p-6">
                 <div class="text-center py-12">
                     <flux:icon name="user-plus" class="w-16 h-16 mx-auto mb-4 text-gray-300" />
