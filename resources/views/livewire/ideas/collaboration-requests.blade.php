@@ -10,20 +10,16 @@ state([
     'respondingToRequest' => null,
 ]);
 
-$pendingRequests = computed(function () {
-    return IdeaCollaborationRequest::where('invitee_id', auth()->id())
-        ->where('status', 'pending')
-        ->with(['idea.user', 'inviter'])
-        ->orderBy('created_at', 'desc')
-        ->get();
-});
+$pendingRequests = IdeaCollaborationRequest::where('invitee_id', auth()->id())
+    ->where('status', 'pending')
+    ->with(['idea.user', 'inviter'])
+    ->orderBy('created_at', 'desc')
+    ->get();
 
-$sentRequests = computed(function () {
-    return IdeaCollaborationRequest::where('inviter_id', auth()->id())
-        ->with(['idea.user', 'invitee'])
-        ->orderBy('created_at', 'desc')
-        ->get();
-});
+$sentRequests = IdeaCollaborationRequest::where('inviter_id', auth()->id())
+    ->with(['idea.user', 'invitee'])
+    ->orderBy('created_at', 'desc')
+    ->get();
 
 $acceptRequest = function ($requestId) {
     $request = IdeaCollaborationRequest::findOrFail($requestId);
@@ -62,13 +58,8 @@ $declineRequest = function ($requestId) {
     }
 };
 
-$canRespondToRequests = computed(function () {
-    return auth()->user()->can('respond_to_collaboration_requests');
-});
-
-$canViewCollaborationRequests = computed(function () {
-    return auth()->user()->can('view_collaboration_requests');
-});
+$canRespondToRequests = auth()->user()->can('respond_to_collaboration_requests');
+$canViewCollaborationRequests = auth()->user()->can('view_collaboration_requests');
 
 ?>
 
@@ -241,7 +232,7 @@ $canViewCollaborationRequests = computed(function () {
                         it will appear here.
                     </p>
                     <flux:button
-                        href="{{ route('ideas.index') }}"
+                        href="{{ route('ideas.public') }}"
                         variant="primary"
                     >
                         Browse Ideas
