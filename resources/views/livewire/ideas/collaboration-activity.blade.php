@@ -21,7 +21,12 @@ new #[Layout('components.layouts.app')] class extends Component {
         $startDate = now()->subDays((int) $this->timeframe);
 
         // Get user's collaborative ideas for filtering
-        $userIdeaIds = Auth::user()->ideas()->pluck('id')->toArray();
+        $user = Auth::user();
+        if (!$user) {
+            return collect();
+        }
+
+        $userIdeaIds = $user->ideas()->pluck('id')->toArray();
 
         switch ($this->filter) {
             case 'revisions':
@@ -90,14 +95,14 @@ new #[Layout('components.layouts.app')] class extends Component {
                     ->where('description', 'like', '%collaborat%')
                     ->orderBy('created_at', 'desc')
                     ->get()
-                    ->map(function ($transaction) {
+                    ->map(function ($transaction) use ($user) {
                         return [
                             'id' => 'points_' . $transaction->id,
                             'type' => 'points',
                             'title' => $transaction->points > 0 ? 'Points earned' : 'Points spent',
                             'description' => $transaction->description,
                             'idea' => null,
-                            'user' => Auth::user(),
+                            'user' => $user,
                             'created_at' => $transaction->created_at,
                             'metadata' => [
                                 'points' => $transaction->points,
@@ -115,14 +120,14 @@ new #[Layout('components.layouts.app')] class extends Component {
                     ->where('event_type', 'like', '%collaborat%')
                     ->orderBy('created_at', 'desc')
                     ->get()
-                    ->map(function ($audit) {
+                    ->map(function ($audit) use ($user) {
                         return [
                             'id' => 'audit_' . $audit->id,
                             'type' => 'audit',
                             'title' => 'Collaboration activity',
                             'description' => $audit->event_type,
                             'idea' => null,
-                            'user' => Auth::user(),
+                            'user' => $user,
                             'created_at' => $audit->created_at,
                             'metadata' => $audit->metadata,
                         ];
@@ -185,14 +190,14 @@ new #[Layout('components.layouts.app')] class extends Component {
                     ->where('created_at', '>=', $startDate)
                     ->where('description', 'like', '%collaborat%')
                     ->get()
-                    ->map(function ($transaction) {
+                    ->map(function ($transaction) use ($user) {
                         return [
                             'id' => 'points_' . $transaction->id,
                             'type' => 'points',
                             'title' => $transaction->points > 0 ? 'Points earned' : 'Points spent',
                             'description' => $transaction->description,
                             'idea' => null,
-                            'user' => Auth::user(),
+                            'user' => $user,
                             'created_at' => $transaction->created_at,
                             'metadata' => [
                                 'points' => $transaction->points,
