@@ -25,6 +25,10 @@ return new class extends Migration {
             $table->boolean('team_effort')->default(false);
             $table->json('team_members')->nullable();
 
+            // Collaboration and revision tracking fields
+            $table->unsignedInteger('current_revision_number')->default(1);
+            $table->date('collaboration_deadline')->nullable();
+
             // Idea status: draft or submitted
             $table->enum('status', ['draft', 'submitted'])->default('draft');
 
@@ -39,6 +43,13 @@ return new class extends Migration {
 
             $table->timestamps();
             $table->softDeletes();
+
+            // Indexes for performance
+            $table->index(['status']);
+            $table->index(['user_id', 'status']);
+            $table->index(['collaboration_enabled']);
+            $table->index(['collaboration_deadline']);
+            $table->index(['thematic_area_id']);
         });
     }
 
