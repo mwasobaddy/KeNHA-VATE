@@ -40,4 +40,12 @@ return [
         'other' => 'Other',
         'prefer_not_to_say' => 'Prefer not to say',
     ],
+
+    'collaboration_points' => [
+        'invite_collaborator' => env('POINTS_INVITE_COLLABORATOR', 5),
+        'accept_invitation' => env('POINTS_ACCEPT_INVITATION', 10),
+        'suggest_revision' => env('POINTS_SUGGEST_REVISION', 15),
+        'revision_accepted' => env('POINTS_REVISION_ACCEPTED', 25),
+        'collaboration_request' => env('POINTS_COLLABORATION_REQUEST', 3),
+    ],
 ];
