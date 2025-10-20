@@ -199,16 +199,21 @@ new #[Layout('components.layouts.app')] class extends Component {
                          ->first();
 
         if ($comment) {
-            $userId = Auth::user()->id;
+            $user = Auth::user();
+            if (!$user) {
+                return;
+            }
+
+            $userId = $user->id;
             $isLiked = $comment->toggleLike($userId);
 
             // Optional: Send notification when someone likes a comment
-            if ($isLiked && $comment->user_id !== Auth::id()) {
+            if ($isLiked && $comment->user_id !== $userId) {
                 app(\App\Services\NotificationService::class)->notify(
                     $comment->user,
                     'info',
                     'Comment Liked',
-                    Auth::user()->first_name . ' ' . Auth::user()->other_names . ' liked your comment.'
+                    $user->first_name . ' ' . $user->other_names . ' liked your comment.'
                 );
             }
         }
@@ -849,7 +854,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                         <div class="flex items-center">
                                             <flux:button
                                                 icon="heart"
-                                                icon:variant="{{ $comment->isLikedBy(Auth::user()->id) ? 'solid' : 'outline' }}"
+                                                icon:variant="{{ Auth::check() && $comment->isLikedBy(Auth::user()->id) ? 'solid' : 'outline' }}"
                                                 wire:click="toggleLike({{ $comment->id }})"
                                                 variant="ghost"
                                                 size="sm"
@@ -915,7 +920,11 @@ new #[Layout('components.layouts.app')] class extends Component {
                                         <div class="flex-shrink-0">
                                             <div class="w-6 h-6 rounded-full bg-gradient-to-br from-[#FFF200] via-yellow-300 to-yellow-400 dark:from-yellow-400 dark:via-yellow-500 dark:to-yellow-600 flex items-center justify-center shadow-sm">
                                                 <span class="text-xs font-bold text-[#231F20] dark:text-zinc-900">
-                                                    {{ substr(Auth::user()->first_name, 0, 1) }}{{ substr(Auth::user()->other_names, 0, 1) }}
+                                                    @if(Auth::user())
+                                                        {{ substr(Auth::user()->first_name, 0, 1) }}{{ substr(Auth::user()->other_names, 0, 1) }}
+                                                    @else
+                                                        ??
+                                                    @endif
                                                 </span>
                                             </div>
                                         </div>
@@ -1056,7 +1065,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                                                 <div class="flex items-center">
                                                                     <flux:button
                                                                         icon="heart"
-                                                                        icon:variant="{{ $reply->isLikedBy(Auth::user()->id) ? 'solid' : 'outline' }}"
+                                                                        icon:variant="{{ Auth::check() && $reply->isLikedBy(Auth::user()->id) ? 'solid' : 'outline' }}"
                                                                         wire:click="toggleLike({{ $reply->id }})"
                                                                         variant="ghost"
                                                                         size="sm"
