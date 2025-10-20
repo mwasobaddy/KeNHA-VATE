@@ -22,7 +22,10 @@ yarn-error.log
 /.vscode
 /.zed
 
+# all files starting with Module- and ending with .md
 Module-1.md
+Module-2.md
+Module-3.md
 copilot-instructions.md
 app/Console/Commands
 tests/
