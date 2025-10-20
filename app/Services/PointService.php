@@ -128,4 +128,68 @@ class PointService
             ->limit($limit)
             ->get();
     }
+
+    /**
+     * Award points for collaboration activities.
+     */
+    public function awardCollaborationPoints(User $user, string $activity, ?int $referenceId = null): void
+    {
+        $points = $this->getCollaborationPoints($activity);
+
+        if ($points > 0) {
+            $this->awardPoints(
+                $user,
+                $points,
+                $this->getCollaborationActivityDescription($activity),
+                'collaboration',
+                $referenceId
+            );
+        }
+    }
+
+    /**
+     * Get points for collaboration activities.
+     */
+    public function getCollaborationPoints(string $activity): int
+    {
+        return match ($activity) {
+            'accept_invitation' => config('kenhavate.points.collaboration.accept_invitation', 25),
+            'suggest_revision' => config('kenhavate.points.collaboration.suggest_revision', 15),
+            'revision_accepted' => config('kenhavate.points.collaboration.revision_accepted', 30),
+            'comment_on_idea' => config('kenhavate.points.collaboration.comment_on_idea', 5),
+            'helpful_comment' => config('kenhavate.points.collaboration.helpful_comment', 10),
+            default => 0,
+        };
+    }
+
+    /**
+     * Get description for collaboration activities.
+     */
+    private function getCollaborationActivityDescription(string $activity): string
+    {
+        return match ($activity) {
+            'accept_invitation' => 'Accepted collaboration invitation',
+            'suggest_revision' => 'Suggested idea revision',
+            'revision_accepted' => 'Revision suggestion accepted',
+            'comment_on_idea' => 'Commented on collaborative idea',
+            'helpful_comment' => 'Received helpful comment recognition',
+            default => 'Collaboration activity',
+        };
+    }
+
+    /**
+     * Award points for commenting on an idea.
+     */
+    public function awardCommentPoints(User $user, int $ideaId): void
+    {
+        $this->awardCollaborationPoints($user, 'comment_on_idea', $ideaId);
+    }
+
+    /**
+     * Award points for receiving helpful comment recognition.
+     */
+    public function awardHelpfulCommentPoints(User $user, int $commentId): void
+    {
+        $this->awardCollaborationPoints($user, 'helpful_comment', $commentId);
+    }
 }
