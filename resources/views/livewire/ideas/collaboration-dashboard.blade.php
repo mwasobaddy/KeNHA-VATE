@@ -15,7 +15,12 @@ new #[Layout('components.layouts.app')] class extends Component {
      */
     public function getCollaborativeIdeas()
     {
-        return Auth::user()->ideas()
+        $user = Auth::user();
+        if (!$user) {
+            return collect();
+        }
+
+        return $user->ideas()
             ->where('collaboration_enabled', true)
             ->with(['collaborators', 'collaborationRequests'])
             ->withCount(['collaborators', 'revisions'])
@@ -27,7 +32,12 @@ new #[Layout('components.layouts.app')] class extends Component {
      */
     public function getCollaborationParticipations()
     {
-        return IdeaCollaborator::where('user_id', Auth::id())
+        $userId = Auth::id();
+        if (!$userId) {
+            return collect();
+        }
+
+        return IdeaCollaborator::where('user_id', $userId)
             ->with(['idea.user', 'idea.collaborators'])
             ->get()
             ->map(function ($collaborator) {
@@ -40,7 +50,12 @@ new #[Layout('components.layouts.app')] class extends Component {
      */
     public function getPendingRequests()
     {
-        return IdeaCollaborationRequest::where('requester_id', Auth::id())
+        $userId = Auth::id();
+        if (!$userId) {
+            return collect();
+        }
+
+        return IdeaCollaborationRequest::where('requester_id', $userId)
             ->where('status', 'pending')
             ->with(['idea.user'])
             ->get();
@@ -51,7 +66,12 @@ new #[Layout('components.layouts.app')] class extends Component {
      */
     public function getRequestsToReview()
     {
-        $userIdeas = Auth::user()->ideas()->pluck('id');
+        $user = Auth::user();
+        if (!$user) {
+            return collect();
+        }
+
+        $userIdeas = $user->ideas()->pluck('id');
         return IdeaCollaborationRequest::whereIn('idea_id', $userIdeas)
             ->where('status', 'pending')
             ->with(['requester', 'idea'])
@@ -63,10 +83,15 @@ new #[Layout('components.layouts.app')] class extends Component {
      */
     public function getRecentActivity()
     {
+        $user = Auth::user();
+        if (!$user) {
+            return collect();
+        }
+
         $activities = collect();
 
         // Recent revisions on user's ideas
-        $revisionActivity = Auth::user()->ideas()
+        $revisionActivity = $user->ideas()
             ->with(['revisions' => function ($query) {
                 $query->latest()->take(5);
             }])
@@ -77,9 +102,9 @@ new #[Layout('components.layouts.app')] class extends Component {
             ->take(10);
 
         // Recent collaboration requests
-        $requestActivity = IdeaCollaborationRequest::where(function ($query) {
-            $query->where('requester_id', Auth::id())
-                  ->orWhereIn('idea_id', Auth::user()->ideas()->pluck('id'));
+        $requestActivity = IdeaCollaborationRequest::where(function ($query) use ($user) {
+            $query->where('requester_id', $user->id)
+                  ->orWhereIn('idea_id', $user->ideas()->pluck('id'));
         })
         ->with(['requester', 'idea'])
         ->latest()
@@ -278,7 +303,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                         <div class="flex items-center gap-4 text-xs text-[#9B9EA4] dark:text-zinc-400">
                                             <span>{{ $idea->collaborators_count }} {{ __('collaborator') }}{{ $idea->collaborators_count !== 1 ? 's' : '' }}</span>
                                             <span>{{ $idea->revisions_count }} {{ __('revision') }}{{ $idea->revisions_count !== 1 ? 's' : '' }}</span>
-                                            <span>{{ $idea->collaboration_requests->where('status', 'pending')->count() }} {{ __('pending request') }}{{ $idea->collaboration_requests->where('status', 'pending')->count() !== 1 ? 's' : '' }}</span>
+                                            <span>{{ $idea->collaborationRequests->where('status', 'pending')->count() }} {{ __('pending request') }}{{ $idea->collaborationRequests->where('status', 'pending')->count() !== 1 ? 's' : '' }}</span>
                                         </div>
                                     </div>
                                     <flux:button
