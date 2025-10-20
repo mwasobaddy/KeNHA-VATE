@@ -185,6 +185,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the ideas created by this user.
+     */
+    public function ideas(): HasMany
+    {
+        return $this->hasMany(Idea::class);
+    }
+
+    /**
      * Invalidate all sessions for this user by incrementing session version.
      */
     public function invalidateAllSessions(): void
