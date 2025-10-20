@@ -1,62 +1,76 @@
 <?php
 
-use function Livewire\Volt\{state, computed, mount, rules, validate};
+use function Livewire\Volt\{state, computed, mount};
 use App\Models\Idea;
 use App\Models\User;
 use App\Services\CollaborationService;
 use Illuminate\Validation\Rule;
 
 state([
+    'ideaId' => null,
     'collaborationEnabled' => false,
     'collaborationDeadline' => null,
     'showInviteForm' => false,
     'inviteEmail' => '',
     'inviteMessage' => '',
-    'invitePermissions' => 'read',
+    'invitePermissions' => 'suggest',
     'removingCollaborator' => null,
     'updatingPermissions' => null,
-    'newPermissions' => 'read',
+    'newPermissions' => 'suggest',
 ]);
 
+// Computed property for idea with relationships
 $idea = computed(function () {
     return Idea::with(['activeCollaborators.user', 'collaborationRequests' => function ($query) {
-        $query->pending()->with('invitee');
+        $query->where('status', 'pending')->with('collaboratorUser');
     }])->findOrFail($this->ideaId);
 });
 
-$availablePermissions = [
-    'read' => 'Read Only',
-    'comment' => 'Read & Comment',
-    'edit' => 'Read & Suggest Edits',
-    'admin' => 'Full Access',
-];
+// Helper function for available permissions
+$getAvailablePermissions = function () {
+    return [
+        'suggest' => 'Can Suggest Edits',
+        'edit' => 'Can Edit Directly',
+    ];
+};
 
-mount(function () {
-    $this->collaborationEnabled = $this->idea->collaboration_enabled;
-    $this->collaborationDeadline = $this->idea->collaboration_deadline?->format('Y-m-d');
+mount(function (Idea $idea) {
+    $this->ideaId = $idea->id;
+    $this->collaborationEnabled = $idea->collaboration_enabled;
+    $this->collaborationDeadline = $idea->collaboration_deadline?->format('Y-m-d');
 });
 
 $toggleCollaboration = function () {
     $this->authorize('manage_collaboration');
 
+    $idea = Idea::findOrFail($this->ideaId);
+
     if ($this->collaborationEnabled) {
-        $this->idea->disableCollaboration();
+        $idea->update(['collaboration_enabled' => false]);
         $this->collaborationEnabled = false;
         session()->flash('success', 'Collaboration disabled for this idea.');
     } else {
-        $this->idea->enableCollaboration($this->collaborationDeadline ? \Carbon\Carbon::parse($this->collaborationDeadline) : null);
+        $idea->update([
+            'collaboration_enabled' => true,
+            'collaboration_deadline' => $this->collaborationDeadline ? \Carbon\Carbon::parse($this->collaborationDeadline) : null,
+        ]);
         $this->collaborationEnabled = true;
         session()->flash('success', 'Collaboration enabled for this idea.');
     }
+
+    // Refresh the idea
+    unset($this->idea);
 };
 
-$inviteCollaborator = function () {
+$inviteCollaborator = function () use ($getAvailablePermissions) {
     $this->authorize('invite_collaborators');
 
+    $availablePermissions = $getAvailablePermissions();
+    
     $validated = $this->validate([
         'inviteEmail' => 'required|email|exists:users,email',
         'inviteMessage' => 'nullable|string|max:500',
-        'invitePermissions' => ['required', Rule::in(array_keys($this->availablePermissions))],
+        'invitePermissions' => ['required', Rule::in(array_keys($availablePermissions))],
     ]);
 
     $invitee = User::where('email', $validated['inviteEmail'])->first();
@@ -66,14 +80,17 @@ $inviteCollaborator = function () {
         return;
     }
 
-    if ($this->idea->isCollaborator($invitee)) {
+    $idea = Idea::findOrFail($this->ideaId);
+
+    // Check if user is already a collaborator
+    if ($idea->activeCollaborators()->where('user_id', $invitee->id)->exists()) {
         $this->addError('inviteEmail', 'User is already a collaborator.');
         return;
     }
 
     try {
         app(CollaborationService::class)->sendInvitation(
-            $this->idea,
+            $idea,
             $invitee,
             auth()->user(),
             $validated['invitePermissions'],
@@ -82,6 +99,9 @@ $inviteCollaborator = function () {
 
         $this->reset(['inviteEmail', 'inviteMessage', 'showInviteForm']);
         session()->flash('success', 'Collaboration invitation sent successfully.');
+        
+        // Refresh the idea
+        unset($this->idea);
     } catch (\Exception $e) {
         $this->addError('inviteEmail', $e->getMessage());
     }
@@ -90,7 +110,8 @@ $inviteCollaborator = function () {
 $removeCollaborator = function ($collaboratorId) {
     $this->authorize('manage_collaborators');
 
-    $collaborator = $this->idea->collaborators()->findOrFail($collaboratorId);
+    $idea = Idea::findOrFail($this->ideaId);
+    $collaborator = $idea->activeCollaborators()->findOrFail($collaboratorId);
 
     try {
         app(CollaborationService::class)->removeCollaborator(
@@ -100,19 +121,25 @@ $removeCollaborator = function ($collaboratorId) {
         );
 
         session()->flash('success', 'Collaborator removed successfully.');
+        
+        // Refresh the idea
+        unset($this->idea);
     } catch (\Exception $e) {
         session()->flash('error', 'Failed to remove collaborator: ' . $e->getMessage());
     }
 };
 
-$updatePermissions = function ($collaboratorId) {
+$updatePermissions = function ($collaboratorId) use ($getAvailablePermissions) {
     $this->authorize('manage_collaborators');
 
+    $availablePermissions = $getAvailablePermissions();
+    
     $validated = $this->validate([
-        'newPermissions' => ['required', Rule::in(array_keys($this->availablePermissions))],
+        'newPermissions' => ['required', Rule::in(array_keys($availablePermissions))],
     ]);
 
-    $collaborator = $this->idea->collaborators()->findOrFail($collaboratorId);
+    $idea = Idea::findOrFail($this->ideaId);
+    $collaborator = $idea->activeCollaborators()->findOrFail($collaboratorId);
 
     try {
         app(CollaborationService::class)->updatePermissions(
@@ -123,28 +150,26 @@ $updatePermissions = function ($collaboratorId) {
 
         $this->reset(['updatingPermissions', 'newPermissions']);
         session()->flash('success', 'Collaborator permissions updated successfully.');
+        
+        // Refresh the idea
+        unset($this->idea);
     } catch (\Exception $e) {
         session()->flash('error', 'Failed to update permissions: ' . $e->getMessage());
     }
 };
 
-$canManageCollaboration = computed(function () {
-    return auth()->user()->can('manage_collaboration') && $this->idea->user_id === auth()->id();
-});
-
-$canInviteCollaborators = computed(function () {
-    return auth()->user()->can('invite_collaborators') && $this->idea->user_id === auth()->id();
-});
-
-$canManageCollaborators = computed(function () {
-    return auth()->user()->can('manage_collaborators') && $this->idea->user_id === auth()->id();
-});
-
 ?>
 
 <div>
+    @php
+        $availablePermissions = [
+            'suggest' => 'Can Suggest Edits',
+            'edit' => 'Can Edit Directly',
+        ];
+    @endphp
+
     <!-- Collaboration Toggle -->
-    @if($canManageCollaboration)
+    @if(auth()->user()->can('manage_collaboration') && $this->idea->user_id === auth()->id())
         <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
             <div class="flex items-center justify-between">
                 <div>
@@ -156,7 +181,7 @@ $canManageCollaborators = computed(function () {
                 <div class="flex items-center space-x-4">
                     @if($collaborationEnabled)
                         <div class="text-sm text-gray-500">
-                            {{ $idea->activeCollaborators->count() }} collaborator{{ $idea->activeCollaborators->count() !== 1 ? 's' : '' }}
+                            {{ $this->idea->activeCollaborators->count() }} collaborator{{ $this->idea->activeCollaborators->count() !== 1 ? 's' : '' }}
                         </div>
                     @endif
                     <flux:switch
@@ -191,7 +216,7 @@ $canManageCollaborators = computed(function () {
         <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-lg font-semibold text-gray-900">Collaborators</h3>
-                @if($canInviteCollaborators)
+                @if(auth()->user()->can('invite_collaborators') && $this->idea->user_id === auth()->id())
                     <flux:button
                         wire:click="$set('showInviteForm', true)"
                         variant="primary"
@@ -204,9 +229,9 @@ $canManageCollaborators = computed(function () {
             </div>
 
             <!-- Active Collaborators -->
-            @if($idea->activeCollaborators->count() > 0)
+            @if($this->idea->activeCollaborators->count() > 0)
                 <div class="space-y-3">
-                    @foreach($idea->activeCollaborators as $collaborator)
+                    @foreach($this->idea->activeCollaborators as $collaborator)
                         <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                             <div class="flex items-center space-x-3">
                                 <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
@@ -219,31 +244,27 @@ $canManageCollaborators = computed(function () {
                             </div>
                             <div class="flex items-center space-x-2">
                                 <span class="px-2 py-1 text-xs font-medium rounded-full
-                                    @if($collaborator->permissions === 'admin') bg-purple-100 text-purple-800
-                                    @elseif($collaborator->permissions === 'edit') bg-blue-100 text-blue-800
-                                    @elseif($collaborator->permissions === 'comment') bg-green-100 text-green-800
-                                    @else bg-gray-100 text-gray-800 @endif">
-                                    {{ $availablePermissions[$collaborator->permissions] ?? $collaborator->permissions }}
+                                    @if($collaborator->permission_level === 'edit') bg-blue-100 text-blue-800
+                                    @else bg-green-100 text-green-800 @endif">
+                                    {{ $availablePermissions[$collaborator->permission_level] ?? $collaborator->permission_level }}
                                 </span>
 
-                                @if($canManageCollaborators)
+                                @if(auth()->user()->can('manage_collaborators') && $this->idea->user_id === auth()->id())
                                     <flux:dropdown>
-                                        <flux:dropdown.trigger>
-                                            <flux:button variant="ghost" size="sm">
-                                                <flux:icon name="more-vertical" class="w-4 h-4" />
-                                            </flux:button>
-                                        </flux:dropdown.trigger>
-                                        <flux:dropdown.content>
-                                            <flux:dropdown.item wire:click="$set('updatingPermissions', {{ $collaborator->id }})">
+                                        <flux:button variant="ghost" size="sm">
+                                            <flux:icon name="ellipsis-vertical" class="w-4 h-4" />
+                                        </flux:button>
+                                        <flux:menu>
+                                            <flux:menu.item wire:click="$set('updatingPermissions', {{ $collaborator->id }})">
                                                 Change Permissions
-                                            </flux:dropdown.item>
-                                            <flux:dropdown.item
+                                            </flux:menu.item>
+                                            <flux:menu.item
                                                 wire:click="removeCollaborator({{ $collaborator->id }})"
-                                                class="text-red-600"
+                                                variant="danger"
                                             >
                                                 Remove Collaborator
-                                            </flux:dropdown.item>
-                                        </flux:dropdown.content>
+                                            </flux:menu.item>
+                                        </flux:menu>
                                     </flux:dropdown>
                                 @endif
                             </div>
@@ -260,21 +281,21 @@ $canManageCollaborators = computed(function () {
         </div>
 
         <!-- Pending Requests -->
-        @if($idea->collaborationRequests->count() > 0)
+        @if($this->idea->collaborationRequests->count() > 0)
             <div class="bg-white rounded-lg shadow-sm border p-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">Pending Invitations</h3>
                 <div class="space-y-3">
-                    @foreach($idea->collaborationRequests as $request)
+                    @foreach($this->idea->collaborationRequests as $request)
                         <div class="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
                             <div class="flex items-center space-x-3">
                                 <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                                    {{ substr($request->invitee->name, 0, 1) }}
+                                    {{ substr($request->collaboratorUser->name, 0, 1) }}
                                 </div>
                                 <div>
-                                    <p class="font-medium text-gray-900">{{ $request->invitee->name }}</p>
-                                    <p class="text-sm text-gray-500">{{ $request->invitee->email }}</p>
-                                    @if($request->message)
-                                        <p class="text-sm text-gray-600 mt-1">"{{ Str::limit($request->message, 100) }}"</p>
+                                    <p class="font-medium text-gray-900">{{ $request->collaboratorUser->name }}</p>
+                                    <p class="text-sm text-gray-500">{{ $request->collaboratorUser->email }}</p>
+                                    @if($request->request_message)
+                                        <p class="text-sm text-gray-600 mt-1">"{{ Str::limit($request->request_message, 100) }}"</p>
                                     @endif
                                 </div>
                             </div>
