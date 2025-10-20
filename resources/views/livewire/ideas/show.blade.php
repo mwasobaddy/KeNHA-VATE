@@ -14,6 +14,8 @@ new #[Layout('components.layouts.app')] class extends Component {
      */
     public function mount($idea = null): void
     {
+        $this->idea = null; // Initialize to prevent undefined variable
+
         // Diagnostic log for incoming param and current user
         \Log::info('show.mount called', ['incoming' => $idea, 'user_id' => Auth::id()]);
 
@@ -31,10 +33,10 @@ new #[Layout('components.layouts.app')] class extends Component {
             $ideaModel = Idea::find((int) $idea);
         }
 
-        // Ensure the $idea property is always set in the mount method
+        // If not found, set to null and return (view will handle)
         if (!$ideaModel) {
             \Log::warning('show.mount: idea not found after fallbacks', ['incoming' => $idea]);
-            abort(404);
+            return; // Don't abort, let view handle
         }
 
         // Check if this is a public view (no auth required for collaborative ideas)
@@ -107,6 +109,17 @@ new #[Layout('components.layouts.app')] class extends Component {
 
 <div class="backdrop-blur-lg">
     <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 border border-zinc-200 dark:border-yellow-400 rounded-3xl bg-gradient-to-br from-[#F8EBD5]/20 via-white to-[#F8EBD5] dark:from-zinc-900/20 dark:via-zinc-800 dark:to-zinc-900 border">
+
+        @if(!$idea)
+            <!-- Idea Not Found -->
+            <div class="text-center py-8">
+                <flux:heading size="lg">Idea not found</flux:heading>
+                <p class="text-gray-500 mt-2">The idea you're looking for doesn't exist or has been removed.</p>
+                <flux:button wire:click="backToIdeas" class="mt-4">
+                    Back to Ideas
+                </flux:button>
+            </div>
+        @else
 
         <!-- Header Section with Icon -->
         <div class="mb-8 sm:mb-12 gap-6 flex flex-col">
@@ -181,6 +194,9 @@ new #[Layout('components.layouts.app')] class extends Component {
                                 @endif">
                                 {{ ucfirst($idea->status) }}
                             </span>
+                            @if($idea->collaboration_enabled)
+                                <x-collaboration-status :idea="$idea" class="ml-2" />
+                            @endif
                             <span class="text-sm text-[#9B9EA4] dark:text-zinc-400">
                                 Created {{ $idea->created_at->format('M j, Y \a\t g:i A') }}
                             </span>
@@ -289,6 +305,62 @@ new #[Layout('components.layouts.app')] class extends Component {
                         </div>
                     </div>
                 </div>
+
+                <!-- Collaboration Section -->
+                @if($idea->collaboration_enabled)
+                    <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
+                        <div class="mb-6">
+                            <h2 class="text-xl font-semibold text-[#231F20] dark:text-white mb-4 flex items-center gap-2">
+                                <flux:icon name="users" class="w-5 h-5" />
+                                {{ __('Collaboration') }}
+                            </h2>
+
+                            <!-- Collaboration Tabs -->
+                            <div x-data="{ activeTab: 'collaborators' }" class="w-full">
+                                <div class="border-b border-[#9B9EA4]/20 dark:border-zinc-700 mb-6">
+                                    <nav class="flex space-x-8">
+                                        <button
+                                            @click="activeTab = 'collaborators'"
+                                            :class="activeTab === 'collaborators' ? 'border-[#FFF200] text-[#231F20] dark:text-white' : 'border-transparent text-[#9B9EA4] dark:text-zinc-400 hover:text-[#231F20] dark:hover:text-white'"
+                                            class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200"
+                                        >
+                                            {{ __('Collaborators') }}
+                                        </button>
+                                        <button
+                                            @click="activeTab = 'revisions'"
+                                            :class="activeTab === 'revisions' ? 'border-[#FFF200] text-[#231F20] dark:text-white' : 'border-transparent text-[#9B9EA4] dark:text-zinc-400 hover:text-[#231F20] dark:hover:text-white'"
+                                            class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200"
+                                        >
+                                            {{ __('Revision History') }}
+                                        </button>
+                                        <button
+                                            @click="activeTab = 'requests'"
+                                            :class="activeTab === 'requests' ? 'border-[#FFF200] text-[#231F20] dark:text-white' : 'border-transparent text-[#9B9EA4] dark:text-zinc-400 hover:text-[#231F20] dark:hover:text-white'"
+                                            class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200"
+                                        >
+                                            {{ __('Requests') }}
+                                        </button>
+                                    </nav>
+                                </div>
+
+                                <!-- Collaborators Tab -->
+                                <div x-show="activeTab === 'collaborators'" x-transition>
+                                    <livewire:ideas.collaboration-manager :idea="$idea" :key="'collaborators-'.$idea->id" />
+                                </div>
+
+                                <!-- Revisions Tab -->
+                                <div x-show="activeTab === 'revisions'" x-transition>
+                                    <livewire:ideas.revision-history :idea="$idea" :key="'revisions-'.$idea->id" />
+                                </div>
+
+                                <!-- Requests Tab -->
+                                <div x-show="activeTab === 'requests'" x-transition>
+                                    <livewire:ideas.collaboration-requests :idea="$idea" :key="'requests-'.$idea->id" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endif
 
                 <!-- Budget Estimate -->
                 @if($idea->budget_estimate)
@@ -415,6 +487,19 @@ new #[Layout('components.layouts.app')] class extends Component {
                             </flux:button>
                         @endif
 
+                        @if($idea->collaboration_enabled)
+                            <flux:button
+                                icon="users"
+                                wire:navigate
+                                href="{{ route('ideas.collaboration.dashboard') }}"
+                                variant="primary"
+                                color="purple"
+                                class="w-full justify-start"
+                            >
+                                {{ __('Manage Collaboration') }}
+                            </flux:button>
+                        @endif
+
                         <flux:button
                             icon="chat-bubble-left-right"
                             wire:click="$redirect('{{ route('ideas.comments', $idea->slug) }}')"
@@ -439,6 +524,8 @@ new #[Layout('components.layouts.app')] class extends Component {
         </div>
 
     </div>
+
+    @endif
 
     <style>
         /* Custom Scrollbar for better UX */
