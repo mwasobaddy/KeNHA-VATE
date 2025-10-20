@@ -10,6 +10,11 @@ use App\Models\IdeaCollaborationRequest;
 new #[Layout('components.layouts.app')] class extends Component {
     public $activeTab = 'overview';
 
+    // Sync tab state with URL query string
+    public array $queryString = [
+        'activeTab' => ['except' => 'overview'],
+    ];
+
     /**
      * Get user's collaborative ideas
      */
@@ -76,6 +81,14 @@ new #[Layout('components.layouts.app')] class extends Component {
             ->where('status', 'pending')
             ->with(['requester', 'idea'])
             ->get();
+    }
+
+    /**
+     * Set the active tab
+     */
+    public function setActiveTab(string $tab): void
+    {
+        $this->activeTab = $tab;
     }
 
     /**
@@ -198,11 +211,12 @@ new #[Layout('components.layouts.app')] class extends Component {
         </div>
 
         <!-- Main Content Tabs -->
-        <div x-data="{ activeTab: 'overview' }" class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700">
+        <div x-data="{ activeTab: $wire.activeTab }" class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700">
             <div class="border-b border-[#9B9EA4]/20 dark:border-zinc-700">
                 <nav class="flex">
                     <button
                         @click="activeTab = 'overview'"
+                        wire:click="setActiveTab('overview')"
                         :class="activeTab === 'overview' ? 'border-[#FFF200] text-[#231F20] dark:text-white' : 'border-transparent text-[#9B9EA4] dark:text-zinc-400 hover:text-[#231F20] dark:hover:text-white'"
                         class="flex-1 py-4 px-6 border-b-2 font-medium text-sm text-center transition-colors duration-200"
                     >
@@ -210,6 +224,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                     </button>
                     <button
                         @click="activeTab = 'my-ideas'"
+                        wire:click="setActiveTab('my-ideas')"
                         :class="activeTab === 'my-ideas' ? 'border-[#FFF200] text-[#231F20] dark:text-white' : 'border-transparent text-[#9B9EA4] dark:text-zinc-400 hover:text-[#231F20] dark:hover:text-white'"
                         class="flex-1 py-4 px-6 border-b-2 font-medium text-sm text-center transition-colors duration-200"
                     >
@@ -217,6 +232,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                     </button>
                     <button
                         @click="activeTab = 'participating'"
+                        wire:click="setActiveTab('participating')"
                         :class="activeTab === 'participating' ? 'border-[#FFF200] text-[#231F20] dark:text-white' : 'border-transparent text-[#9B9EA4] dark:text-zinc-400 hover:text-[#231F20] dark:hover:text-white'"
                         class="flex-1 py-4 px-6 border-b-2 font-medium text-sm text-center transition-colors duration-200"
                     >
@@ -224,6 +240,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                     </button>
                     <button
                         @click="activeTab = 'requests'"
+                        wire:click="setActiveTab('requests')"
                         :class="activeTab === 'requests' ? 'border-[#FFF200] text-[#231F20] dark:text-white' : 'border-transparent text-[#9B9EA4] dark:text-zinc-400 hover:text-[#231F20] dark:hover:text-white'"
                         class="flex-1 py-4 px-6 border-b-2 font-medium text-sm text-center transition-colors duration-200"
                     >
