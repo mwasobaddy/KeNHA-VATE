@@ -11,7 +11,7 @@
 ])
 
 {{-- Filters Card Container with toggle --}}
-<div x-data="{ open: false }" class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md {{ $class }}">
+<div x-data="{ open: false }" class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md {{ $class }} mb-6">
     <div class="p-4 sm:p-6">
         <div class="flex items-center justify-between gap-4 flex-wrap">
             {{-- Left: Search --}}

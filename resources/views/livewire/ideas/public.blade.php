@@ -276,7 +276,7 @@ new #[Layout('components.layouts.app')] class extends Component {
     </x-cards.filters>
 
     {{-- Sort Options --}}
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between mb-6">
         <div class="flex items-center space-x-4">
             <span class="text-sm font-medium text-[#231F20] dark:text-white">Sort by:</span>
             <div class="flex items-center space-x-2">
