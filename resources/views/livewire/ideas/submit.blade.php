@@ -92,6 +92,15 @@ new #[Layout('components.layouts.app')] class extends Component {
             $this->team_effort = $draft->team_effort;
             $this->team_members = $draft->team_members ?? [];
 
+            // Ensure team_members have the correct structure
+            $this->team_members = array_map(function ($member) {
+                return [
+                    'name' => $member['name'] ?? '',
+                    'email' => $member['email'] ?? '',
+                    'role' => $member['role'] ?? '',
+                ];
+            }, $this->team_members);
+
             Log::info('Draft loaded into form', [
                 'user_id' => Auth::id(),
                 'draft_slug' => $draftSlug,
