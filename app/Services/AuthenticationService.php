@@ -36,6 +36,9 @@ class AuthenticationService
             $otp = $this->generateOtp();
             $hashedOtp = Hash::make($otp);
 
+            // LOG THE OTP CODE FOR DEBUGGING (REMOVE IN PRODUCTION)
+            Log::info('Generated OTP', ['email' => $email, 'otp' => $otp]);
+
             // Store OTP in cache with expiration
             $cacheKey = "otp:{$email}";
             Cache::put($cacheKey, $hashedOtp, now()->addMinutes(config('kenhavate.otp.expiry_minutes', 10)));
