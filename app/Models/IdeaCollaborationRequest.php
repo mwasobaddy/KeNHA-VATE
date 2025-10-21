@@ -12,8 +12,10 @@ class IdeaCollaborationRequest extends Model
 {
     protected $fillable = [
         'idea_id',
-        'collaborator_user_id',
+        'requester_id',
         'request_message',
+        'proposed_contribution',
+        'requester_experience',
         'status',
         'requested_at',
         'response_at',
@@ -31,9 +33,9 @@ class IdeaCollaborationRequest extends Model
         return $this->belongsTo(Idea::class);
     }
 
-    public function collaboratorUser(): BelongsTo
+    public function requester(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'collaborator_user_id');
+        return $this->belongsTo(User::class, 'requester_id');
     }
 
     // Scopes
@@ -59,7 +61,7 @@ class IdeaCollaborationRequest extends Model
 
     public function scopeForUser(Builder $query, int $userId): Builder
     {
-        return $query->where('collaborator_user_id', $userId);
+        return $query->where('requester_id', $userId);
     }
 
     // Methods
@@ -75,7 +77,7 @@ class IdeaCollaborationRequest extends Model
         ]);
     }
 
-    public function decline(string $reason = null): bool
+    public function decline(?string $reason = null): bool
     {
         if ($this->status !== 'pending') {
             return false;
