@@ -14,8 +14,10 @@ return new class extends Migration
         Schema::create('idea_collaboration_requests', function (Blueprint $table) {
             $table->id();
             $table->foreignId('idea_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('collaborator_user_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('requester_id')->constrained('users')->cascadeOnDelete();
             $table->text('request_message')->nullable();
+            $table->text('proposed_contribution')->nullable();
+            $table->text('requester_experience')->nullable();
             $table->enum('status', ['pending', 'accepted', 'declined'])->default('pending');
             $table->timestamp('requested_at')->useCurrent();
             $table->timestamp('response_at')->nullable();
@@ -24,7 +26,7 @@ return new class extends Migration
 
             // Indexes for performance
             $table->index(['idea_id', 'status']);
-            $table->index(['collaborator_user_id', 'status']);
+            $table->index(['requester_id', 'status']);
             $table->index(['status']);
         });
     }
