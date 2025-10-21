@@ -22,7 +22,7 @@ state([
 // Computed property for idea with relationships
 $idea = computed(function () {
     return Idea::with(['activeCollaborators.user', 'collaborationRequests' => function ($query) {
-        $query->where('status', 'pending')->with('collaboratorUser');
+        $query->where('status', 'pending')->with('requester');
     }])->findOrFail($this->ideaId);
 });
 
@@ -41,9 +41,8 @@ mount(function (Idea $idea) {
 });
 
 $toggleCollaboration = function () {
-    $this->authorize('manage_collaboration');
-
     $idea = Idea::findOrFail($this->ideaId);
+    $this->authorize('manageCollaboration', $idea);
 
     if ($this->collaborationEnabled) {
         $idea->update(['collaboration_enabled' => false]);
@@ -63,7 +62,8 @@ $toggleCollaboration = function () {
 };
 
 $inviteCollaborator = function () use ($getAvailablePermissions) {
-    $this->authorize('invite_collaborators');
+    $idea = Idea::findOrFail($this->ideaId);
+    $this->authorize('inviteCollaborators', $idea);
 
     $availablePermissions = $getAvailablePermissions();
     
@@ -108,9 +108,9 @@ $inviteCollaborator = function () use ($getAvailablePermissions) {
 };
 
 $removeCollaborator = function ($collaboratorId) {
-    $this->authorize('manage_collaborators');
-
     $idea = Idea::findOrFail($this->ideaId);
+    $this->authorize('manageCollaborators', $idea);
+
     $collaborator = $idea->activeCollaborators()->findOrFail($collaboratorId);
 
     try {
@@ -130,7 +130,8 @@ $removeCollaborator = function ($collaboratorId) {
 };
 
 $updatePermissions = function ($collaboratorId) use ($getAvailablePermissions) {
-    $this->authorize('manage_collaborators');
+    $idea = Idea::findOrFail($this->ideaId);
+    $this->authorize('manageCollaborators', $idea);
 
     $availablePermissions = $getAvailablePermissions();
     
@@ -169,8 +170,8 @@ $updatePermissions = function ($collaboratorId) use ($getAvailablePermissions) {
     @endphp
 
     <!-- Collaboration Toggle -->
-    @if(auth()->user()->can('manage_collaboration') && $this->idea->user_id === auth()->id())
-        <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
+    @if(auth()->user() && $this->idea && auth()->user()->can('manageCollaboration', $this->idea))
+        <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6 mb-6">
             <div class="flex items-center justify-between">
                 <div>
                     <h3 class="text-lg font-semibold text-gray-900">Collaboration Settings</h3>
@@ -213,10 +214,10 @@ $updatePermissions = function ($collaboratorId) use ($getAvailablePermissions) {
 
     <!-- Collaborators Management -->
     @if($collaborationEnabled)
-        <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
+        <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6 mb-6">
             <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-semibold text-gray-900">Collaborators</h3>
-                @if(auth()->user()->can('invite_collaborators') && $this->idea->user_id === auth()->id())
+                <h3 class="text-lg font-semibold text-[#231F20] dark:text-white">Collaborators</h3>
+                @if(auth()->user() && $this->idea && auth()->user()->can('inviteCollaborators', $this->idea))
                     <flux:button
                         wire:click="$set('showInviteForm', true)"
                         variant="primary"
@@ -232,14 +233,14 @@ $updatePermissions = function ($collaboratorId) use ($getAvailablePermissions) {
             @if($this->idea->activeCollaborators->count() > 0)
                 <div class="space-y-3">
                     @foreach($this->idea->activeCollaborators as $collaborator)
-                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div class="flex items-center justify-between p-3 bg-[#F8EBD5]/40 dark:bg-zinc-900/40 rounded-xl">
                             <div class="flex items-center space-x-3">
-                                <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                                <div class="w-8 h-8 bg-gradient-to-br from-[#FFF200] via-yellow-300 to-yellow-400 dark:from-yellow-400 dark:via-yellow-500 dark:to-yellow-600 rounded-full flex items-center justify-center text-[#231F20] dark:text-zinc-900 text-sm font-medium shadow">
                                     {{ substr($collaborator->user->name, 0, 1) }}
                                 </div>
                                 <div>
-                                    <p class="font-medium text-gray-900">{{ $collaborator->user->name }}</p>
-                                    <p class="text-sm text-gray-500">{{ $collaborator->user->email }}</p>
+                                    <p class="font-medium text-[#231F20] dark:text-white">{{ $collaborator->user->name }}</p>
+                                    <p class="text-sm text-[#9B9EA4] dark:text-zinc-400">{{ $collaborator->user->email }}</p>
                                 </div>
                             </div>
                             <div class="flex items-center space-x-2">
@@ -249,7 +250,7 @@ $updatePermissions = function ($collaboratorId) use ($getAvailablePermissions) {
                                     {{ $availablePermissions[$collaborator->permission_level] ?? $collaborator->permission_level }}
                                 </span>
 
-                                @if(auth()->user()->can('manage_collaborators') && $this->idea->user_id === auth()->id())
+                                @if(auth()->user()->can('manageCollaborators', $this->idea))
                                     <flux:dropdown>
                                         <flux:button variant="ghost" size="sm">
                                             <flux:icon name="ellipsis-vertical" class="w-4 h-4" />
@@ -272,7 +273,7 @@ $updatePermissions = function ($collaboratorId) use ($getAvailablePermissions) {
                     @endforeach
                 </div>
             @else
-                <div class="text-center py-8 text-gray-500">
+                <div class="text-center py-8 text-[#9B9EA4] dark:text-zinc-400">
                     <flux:icon name="users" class="w-12 h-12 mx-auto mb-4 text-gray-300" />
                     <p>No collaborators yet</p>
                     <p class="text-sm">Invite team members to collaborate on this idea</p>
@@ -282,18 +283,18 @@ $updatePermissions = function ($collaboratorId) use ($getAvailablePermissions) {
 
         <!-- Pending Requests -->
         @if($this->idea->collaborationRequests->count() > 0)
-            <div class="bg-white rounded-lg shadow-sm border p-6">
+            <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">Pending Invitations</h3>
                 <div class="space-y-3">
                     @foreach($this->idea->collaborationRequests as $request)
-                        <div class="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+                        <div class="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-900/30 rounded-xl">
                             <div class="flex items-center space-x-3">
-                                <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                                    {{ substr($request->collaboratorUser->name, 0, 1) }}
+                                <div class="w-8 h-8 bg-gradient-to-br from-[#FFF200] via-yellow-300 to-yellow-400 dark:from-yellow-400 dark:via-yellow-500 dark:to-yellow-600 rounded-full flex items-center justify-center text-[#231F20] dark:text-zinc-900 text-sm font-medium shadow">
+                                    {{ substr($request->requester->name, 0, 1) }}
                                 </div>
                                 <div>
-                                    <p class="font-medium text-gray-900">{{ $request->collaboratorUser->name }}</p>
-                                    <p class="text-sm text-gray-500">{{ $request->collaboratorUser->email }}</p>
+                                    <p class="font-medium text-[#231F20] dark:text-white">{{ $request->requester->name }}</p>
+                                    <p class="text-sm text-[#9B9EA4] dark:text-zinc-400">{{ $request->requester->email }}</p>
                                     @if($request->request_message)
                                         <p class="text-sm text-gray-600 mt-1">"{{ Str::limit($request->request_message, 100) }}"</p>
                                     @endif
