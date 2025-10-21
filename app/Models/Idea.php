@@ -320,7 +320,7 @@ class Idea extends Model
     /**
      * Reject a pending revision.
      */
-    public function rejectRevision(IdeaRevision $revision, User $author, string $reason = null): bool
+    public function rejectRevision(IdeaRevision $revision, User $author, ?string $reason = null): bool
     {
         if (!$this->isAuthor($author) || !$revision->isPending()) {
             return false;
