@@ -117,35 +117,35 @@ $canCreateRevisions = computed(function () {
 
 <div>
     <!-- Revision Stats -->
-    <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Revision Overview</h3>
+    <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6 mb-6">
+        <h3 class="text-lg font-semibold text-[#231F20] dark:text-white mb-4">Revision Overview</h3>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="text-center">
                 <div class="text-2xl font-bold text-blue-600">{{ $this->revisionStats['total_revisions'] }}</div>
-                <div class="text-sm text-gray-500">Total Revisions</div>
+                <div class="text-sm text-[#9B9EA4] dark:text-zinc-400">Total Revisions</div>
             </div>
             <div class="text-center">
                 <div class="text-2xl font-bold text-yellow-600">{{ $this->revisionStats['pending_revisions'] }}</div>
-                <div class="text-sm text-gray-500">Pending</div>
+                <div class="text-sm text-[#9B9EA4] dark:text-zinc-400">Pending</div>
             </div>
             <div class="text-center">
                 <div class="text-2xl font-bold text-green-600">{{ $this->revisionStats['accepted_revisions'] }}</div>
-                <div class="text-sm text-gray-500">Accepted</div>
+                <div class="text-sm text-[#9B9EA4] dark:text-zinc-400">Accepted</div>
             </div>
             <div class="text-center">
                 <div class="text-2xl font-bold text-red-600">{{ $this->revisionStats['rejected_revisions'] }}</div>
-                <div class="text-sm text-gray-500">Rejected</div>
+                <div class="text-sm text-[#9B9EA4] dark:text-zinc-400">Rejected</div>
             </div>
         </div>
     </div>
 
     <!-- Pending Revisions -->
     @if($this->pendingRevisions->count() > 0 && $this->canManageRevisions)
-        <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Pending Revisions</h3>
+        <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6 mb-6">
+            <h3 class="text-lg font-semibold text-[#231F20] dark:text-white mb-4">Pending Revisions</h3>
             <div class="space-y-4">
                 @foreach($this->pendingRevisions as $revision)
-                    <div class="border rounded-lg p-4">
+                    <div class="p-4 bg-[#F8EBD5]/40 dark:bg-zinc-900/40 rounded-xl">
                         <div class="flex items-start justify-between">
                             <div class="flex-1">
                                 <div class="flex items-center space-x-2 mb-2">
@@ -158,7 +158,7 @@ $canCreateRevisions = computed(function () {
                                     </span>
                                 </div>
                                 @if($revision->change_summary)
-                                    <p class="text-gray-900 font-medium mb-2">{{ $revision->change_summary }}</p>
+                                    <p class="text-[#231F20] dark:text-white font-medium mb-2">{{ $revision->change_summary }}</p>
                                 @endif
                                 <div class="text-sm text-gray-600">
                                     <span class="font-medium">{{ is_array($revision->changed_fields) ? count($revision->changed_fields) : 0 }}</span> field{{ (is_array($revision->changed_fields) ? count($revision->changed_fields) : 0) !== 1 ? 's' : '' }} changed
@@ -188,9 +188,9 @@ $canCreateRevisions = computed(function () {
     @endif
 
     <!-- Revision Timeline -->
-    <div class="bg-white rounded-lg shadow-sm border p-6">
+    <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
         <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-gray-900">Revision History</h3>
+            <h3 class="text-lg font-semibold text-[#231F20] dark:text-white">Revision History</h3>
             @if($this->idea->revisions->count() > 1)
                 <flux:button
                     wire:click="$set('selectedRevision', 'compare')"
@@ -215,7 +215,7 @@ $canCreateRevisions = computed(function () {
                                 @else bg-gray-400 @endif">
                             </div>
                             @if(!$loop->last)
-                                <div class="w-px h-12 bg-gray-200 mt-2"></div>
+                                <div class="w-px h-12 bg-[#E6E7E9] dark:bg-zinc-700 mt-2"></div>
                             @endif
                         </div>
 
@@ -249,14 +249,14 @@ $canCreateRevisions = computed(function () {
                                 @endif
                             </div>
 
-                            <div class="mt-2 text-sm text-gray-600">
-                                <span class="font-medium">{{ $revision->createdByUser->name ?? 'Unknown User' }}</span>
+                            <div class="mt-2 text-sm text-[#9B9EA4] dark:text-zinc-400">
+                                <span class="font-medium text-[#231F20] dark:text-white">{{ $revision->createdByUser->name ?? 'Unknown User' }}</span>
                                 <span class="mx-2">•</span>
                                 <span>{{ $revision->created_at->format('M j, Y \a\t g:i A') }}</span>
                             </div>
 
                             @if($revision->change_summary)
-                                <p class="mt-2 text-gray-900">{{ $revision->change_summary }}</p>
+                                <p class="mt-2 text-[#231F20] dark:text-white">{{ $revision->change_summary }}</p>
                             @endif
 
                             @if($revision->status === 'rejected' && $revision->review_reason)
@@ -268,7 +268,7 @@ $canCreateRevisions = computed(function () {
                             @endif
 
                             @if(is_array($revision->changed_fields) && count($revision->changed_fields) > 0)
-                                <div class="mt-2 text-sm text-gray-500">
+                                <div class="mt-2 text-sm text-[#9B9EA4] dark:text-zinc-400">
                                     Changed fields: {{ implode(', ', array_keys($revision->changed_fields)) }}
                                 </div>
                             @endif
@@ -277,9 +277,9 @@ $canCreateRevisions = computed(function () {
                 @endforeach
             </div>
         @else
-            <div class="text-center py-8 text-gray-500">
+            <div class="text-center py-8 text-[#9B9EA4] dark:text-zinc-400">
                 <flux:icon name="document-text" class="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p>No revisions yet</p>
+                <p class="text-[#231F20] dark:text-white">No revisions yet</p>
                 <p class="text-sm">Revisions will appear here when collaborators suggest changes</p>
             </div>
         @endif
