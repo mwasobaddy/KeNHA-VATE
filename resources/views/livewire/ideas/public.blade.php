@@ -25,6 +25,14 @@ new #[Layout('components.layouts.app')] class extends Component {
     // Pagination
     public int $perPage = 12;
 
+    // Collaboration modal properties
+    public ?int $selectedIdeaId = null;
+    public bool $showCollaborationModal = false;
+    public string $collaborationMessage = '';
+    public string $proposedContribution = '';
+    public string $requesterExperience = '';
+    public bool $acceptTerms = false;
+
     /**
      * Sync filter state to the URL query string for persistence and shareability
      */
@@ -175,6 +183,93 @@ new #[Layout('components.layouts.app')] class extends Component {
         return \App\Models\IdeaLike::where('user_id', auth()->id())
             ->where('idea_id', $ideaId)
             ->exists();
+    }
+
+    /**
+     * Reset all filters
+     */
+    public function resetFilters(): void
+    {
+        $this->search = '';
+        $this->thematicArea = '';
+        $this->sortField = 'created_at';
+        $this->sortDirection = 'desc';
+        $this->perPage = 12;
+    }
+
+    /**
+     * Open collaboration request modal
+     */
+    public function openCollaborationModal(int $ideaId): void
+    {
+        if (!auth()->check()) {
+            session()->flash('error', 'Please login to request collaboration.');
+            return;
+        }
+
+        $this->selectedIdeaId = $ideaId;
+        $this->collaborationMessage = '';
+        $this->proposedContribution = '';
+        $this->requesterExperience = '';
+        $this->acceptTerms = false;
+        $this->showCollaborationModal = true;
+    }
+
+    /**
+     * Close collaboration request modal
+     */
+    public function closeCollaborationModal(): void
+    {
+        $this->showCollaborationModal = false;
+        $this->selectedIdeaId = null;
+        $this->collaborationMessage = '';
+        $this->proposedContribution = '';
+        $this->requesterExperience = '';
+        $this->acceptTerms = false;
+    }
+
+    /**
+     * Submit collaboration request
+     */
+    public function submitCollaborationRequest(): void
+    {
+        if (!auth()->check()) {
+            session()->flash('error', 'Please login to request collaboration.');
+            return;
+        }
+
+        $this->validate([
+            'collaborationMessage' => 'required|string|min:50|max:1000',
+            'proposedContribution' => 'required|string|min:20|max:500',
+            'requesterExperience' => 'required|string|min:20|max:500',
+            'acceptTerms' => 'accepted',
+        ], [
+            'collaborationMessage.required' => 'Please explain why you want to collaborate on this idea.',
+            'collaborationMessage.min' => 'Your message must be at least 50 characters.',
+            'proposedContribution.required' => 'Please describe what you can contribute.',
+            'requesterExperience.required' => 'Please share your relevant experience.',
+            'acceptTerms.accepted' => 'You must accept the collaboration terms.',
+        ]);
+
+        try {
+            $idea = Idea::findOrFail($this->selectedIdeaId);
+            $user = auth()->user();
+
+            $collaborationService = app(\App\Services\CollaborationService::class);
+            $request = $collaborationService->submitCollaborationRequest(
+                $idea,
+                $user,
+                $this->collaborationMessage,
+                $this->proposedContribution,
+                $this->requesterExperience
+            );
+
+            session()->flash('success', 'Your collaboration request has been submitted successfully! The idea author will review your request.');
+            $this->closeCollaborationModal();
+
+        } catch (\Exception $e) {
+            session()->flash('error', 'Failed to submit collaboration request: ' . $e->getMessage());
+        }
     }
 }; ?>
 
@@ -372,7 +467,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 
                 <!-- Custom Footer with Like Functionality -->
                 <div class="px-6 py-4 border-t border-gray-200 dark:border-zinc-700">
-                    <div class="flex items-center justify-between">
+                    <div class="flex items-center justify-between mb-4">
                         <div class="flex items-center space-x-4">
                             <!-- Like Button -->
                             @if(auth()->check())
@@ -429,6 +524,32 @@ new #[Layout('components.layouts.app')] class extends Component {
                             </flux:button>
                         </div>
                     </div>
+                    <div class="w-full">
+                        {{-- if idea belongs to user logged in disable button --}}
+                        @if($idea->user_id === Auth::id())
+                            <flux:button
+                                icon="user-plus"
+                                size="sm"
+                                variant="primary"
+                                title="You cannot collaborate on your own idea"
+                                class="w-full cursor-not-allowed bg-gray-300 hover:bg-gray-400 text-gray-600 dark:bg-zinc-700 hover:bg-zinc-600 dark:text-zinc-400"
+                            >
+                                Collaborate
+                            </flux:button>
+                        @else
+                            <flux:button
+                                icon="user-plus"
+                                size="sm"
+                                variant="primary"
+                                color="green"
+                                wire:click="openCollaborationModal({{ $idea->id }})"
+                                title="Request to collaborate on this idea"
+                                class="w-full"
+                            >
+                                Collaborate
+                            </flux:button>
+                        @endif
+                    </div>
                 </div>
             </x-cards.card>
         @endforeach
@@ -481,4 +602,122 @@ new #[Layout('components.layouts.app')] class extends Component {
             box-shadow: 0 0 0 3px rgba(255, 242, 0, 0.1);
         }
     </style>
+
+    {{-- Collaboration Request Modal --}}
+    <x-modal
+        model="showCollaborationModal"
+        title="Request Collaboration"
+        submit="submitCollaborationRequest"
+        submit-text="Submit Request"
+        cancel="closeCollaborationModal"
+    >
+        <div class="space-y-6">
+            @if($selectedIdeaId)
+                @php
+                    $selectedIdea = \App\Models\Idea::find($selectedIdeaId);
+                @endphp
+
+                @if($selectedIdea)
+                    <!-- Idea Preview -->
+                    <div class="bg-gray-50 dark:bg-zinc-800 rounded-lg p-4 border border-gray-200 dark:border-zinc-700">
+                        <h4 class="font-semibold text-gray-900 dark:text-white mb-2">{{ $selectedIdea->idea_title }}</h4>
+                        <p class="text-sm text-gray-600 dark:text-zinc-400 line-clamp-2">
+                            {{ Str::limit($selectedIdea->abstract, 150) }}
+                        </p>
+                        <div class="flex items-center mt-2 text-xs text-gray-500 dark:text-zinc-500">
+                            <span>By {{ $selectedIdea->user->first_name ?? $selectedIdea->user->email }}</span>
+                        </div>
+                    </div>
+                @endif
+            @endif
+
+            <!-- Collaboration Message -->
+            <div>
+                <flux:input
+                    wire:model="collaborationMessage"
+                    :label="__('Why do you want to collaborate on this idea?')"
+                    type="textarea"
+                    rows="4"
+                    required
+                    placeholder="Explain your interest in this idea and why you'd be a good collaborator..."
+                    class="transition-all duration-200 focus:ring-2 focus:ring-[#FFF200] dark:focus:ring-yellow-400"
+                />
+                <p class="text-xs text-gray-500 dark:text-zinc-400 mt-1">
+                    Minimum 50 characters. Be specific about your motivation and goals.
+                </p>
+            </div>
+
+            <!-- Proposed Contribution -->
+            <div>
+                <flux:input
+                    wire:model="proposedContribution"
+                    :label="__('What can you contribute to this idea?')"
+                    type="textarea"
+                    rows="3"
+                    required
+                    placeholder="Describe your skills, expertise, or resources you can bring to the collaboration..."
+                    class="transition-all duration-200 focus:ring-2 focus:ring-[#FFF200] dark:focus:ring-yellow-400"
+                />
+                <p class="text-xs text-gray-500 dark:text-zinc-400 mt-1">
+                    Minimum 20 characters. Focus on what value you can add.
+                </p>
+            </div>
+
+            <!-- Experience -->
+            <div>
+                <flux:input
+                    wire:model="requesterExperience"
+                    :label="__('Relevant Experience & Background')"
+                    type="textarea"
+                    rows="3"
+                    required
+                    placeholder="Share your relevant experience, qualifications, or background that makes you suitable for this collaboration..."
+                    class="transition-all duration-200 focus:ring-2 focus:ring-[#FFF200] dark:focus:ring-yellow-400"
+                />
+                <p class="text-xs text-gray-500 dark:text-zinc-400 mt-1">
+                    Minimum 20 characters. Help the author understand your capabilities.
+                </p>
+            </div>
+
+            <!-- Terms Acceptance -->
+            <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                <div class="flex items-start space-x-3">
+                    <flux:checkbox
+                        wire:model="acceptTerms"
+                        class="mt-0.5"
+                    />
+                    <div class="flex-1">
+                        <h4 class="text-sm font-medium text-yellow-800 dark:text-yellow-200 mb-1">
+                            Collaboration Terms & IP Agreement
+                        </h4>
+                        <div class="text-xs text-yellow-700 dark:text-yellow-300 space-y-1">
+                            <p>By requesting collaboration, you agree to:</p>
+                            <ul class="list-disc list-inside space-y-0.5 ml-2">
+                                <li>Respect intellectual property rights and confidentiality</li>
+                                <li>Contribute constructively to the idea development</li>
+                                <li>Follow the collaboration guidelines set by the idea author</li>
+                                <li>Not share or disclose idea details without permission</li>
+                                <li>Any collaborative work may be subject to IP agreements</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Validation Errors -->
+            @error('collaborationMessage')
+                <p class="text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+            @enderror
+            @error('proposedContribution')
+                <p class="text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+            @enderror
+            @error('requesterExperience')
+                <p class="text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+            @enderror
+            @error('acceptTerms')
+                <p class="text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+            @enderror
+        </div>
+    </x-modal>
+
 </div>
