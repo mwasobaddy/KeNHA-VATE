@@ -19,14 +19,14 @@ $idea = computed(function () {
 $pendingRequests = computed(function () {
     return IdeaCollaborationRequest::where('idea_id', $this->ideaId)
         ->where('status', 'pending')
-        ->with(['collaboratorUser'])
+        ->with(['requester'])
         ->orderBy('created_at', 'desc')
         ->get();
 });
 
 $allRequests = computed(function () {
     return IdeaCollaborationRequest::where('idea_id', $this->ideaId)
-        ->with(['collaboratorUser'])
+        ->with(['requester'])
         ->orderBy('created_at', 'desc')
         ->get();
 });
@@ -85,7 +85,7 @@ $declineRequest = function ($requestId) {
 };
 
 $canManageRequests = computed(function () {
-    return auth()->user()->can('manage_collaboration_requests') && $this->idea->user_id === auth()->id();
+    return auth()->user() && $this->idea && auth()->user()->can('viewCollaborationRequests', $this->idea);
 });
 
 ?>
@@ -94,8 +94,8 @@ $canManageRequests = computed(function () {
     @if($this->canManageRequests)
         <!-- Pending Requests -->
         @if($this->pendingRequests->count() > 0)
-            <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">
+            <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6 mb-6">
+                <h3 class="text-lg font-semibold text-[#231F20] dark:text-white mb-4">
                     Pending Collaboration Requests
                     <span class="ml-2 px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
                         {{ $this->pendingRequests->count() }}
@@ -103,17 +103,17 @@ $canManageRequests = computed(function () {
                 </h3>
                 <div class="space-y-4">
                     @foreach($this->pendingRequests as $request)
-                        <div class="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                        <div class="p-4 bg-[#F8EBD5]/40 dark:bg-zinc-900/40 rounded-xl">
                             <div class="flex items-start justify-between">
                                 <div class="flex-1">
                                     <div class="flex items-center space-x-3 mb-2">
-                                        <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium">
-                                            {{ substr($request->collaboratorUser->name ?? 'U', 0, 1) }}
+                                        <div class="w-10 h-10 bg-gradient-to-br from-[#FFF200] via-yellow-300 to-yellow-400 dark:from-yellow-400 dark:via-yellow-500 dark:to-yellow-600 rounded-full flex items-center justify-center text-[#231F20] dark:text-zinc-900 font-medium shadow">
+                                            {{ substr($request->requester->name ?? 'U', 0, 1) }}
                                         </div>
                                         <div>
-                                            <h4 class="font-medium text-gray-900">{{ $request->collaboratorUser->name ?? 'Unknown User' }}</h4>
-                                            <p class="text-sm text-gray-500">
-                                                {{ $request->collaboratorUser->email ?? 'No email' }}
+                                            <h4 class="font-medium text-[#231F20] dark:text-white">{{ $request->requester->name ?? 'Unknown User' }}</h4>
+                                            <p class="text-sm text-[#9B9EA4] dark:text-zinc-400">
+                                                {{ $request->requester->email ?? 'No email' }}
                                                 <span class="mx-2">•</span>
                                                 {{ $request->created_at->diffForHumans() }}
                                             </p>
@@ -121,8 +121,8 @@ $canManageRequests = computed(function () {
                                     </div>
 
                                     @if($request->request_message)
-                                        <div class="mb-3 p-3 bg-blue-50 rounded-lg">
-                                            <p class="text-sm text-blue-800">
+                                        <div class="mb-3 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg">
+                                            <p class="text-sm text-blue-800 dark:text-blue-200">
                                                 <strong>Message:</strong> "{{ $request->request_message }}"
                                             </p>
                                         </div>
@@ -154,11 +154,11 @@ $canManageRequests = computed(function () {
 
         <!-- All Requests History -->
         @if($this->allRequests->count() > 0)
-            <div class="bg-white rounded-lg shadow-sm border p-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">All Collaboration Requests</h3>
+            <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
+                <h3 class="text-lg font-semibold text-[#231F20] dark:text-white mb-4">All Collaboration Requests</h3>
                 <div class="space-y-4">
                     @foreach($this->allRequests as $request)
-                        <div class="border rounded-lg p-4">
+                        <div class="p-4 bg-[#F8EBD5]/40 dark:bg-zinc-900/40 rounded-xl">
                             <div class="flex items-start justify-between">
                                 <div class="flex-1">
                                     <div class="flex items-center space-x-3 mb-2">
@@ -166,12 +166,12 @@ $canManageRequests = computed(function () {
                                             @if($request->status === 'accepted') bg-green-500
                                             @elseif($request->status === 'declined') bg-red-500
                                             @else bg-yellow-500 @endif">
-                                            {{ substr($request->collaboratorUser->name ?? 'U', 0, 1) }}
+                                            {{ substr($request->requester->name ?? 'U', 0, 1) }}
                                         </div>
                                         <div>
-                                            <h4 class="font-medium text-gray-900">{{ $request->collaboratorUser->name ?? 'Unknown User' }}</h4>
-                                            <p class="text-sm text-gray-500">
-                                                {{ $request->collaboratorUser->email ?? 'No email' }}
+                                            <h4 class="font-medium text-[#231F20] dark:text-white">{{ $request->requester->name ?? 'Unknown User' }}</h4>
+                                            <p class="text-sm text-[#9B9EA4] dark:text-zinc-400">
+                                                {{ $request->requester->email ?? 'No email' }}
                                                 <span class="mx-2">•</span>
                                                 {{ $request->requested_at ? $request->requested_at->diffForHumans() : $request->created_at->diffForHumans() }}
                                             </p>
@@ -179,14 +179,14 @@ $canManageRequests = computed(function () {
                                     </div>
 
                                     @if($request->request_message)
-                                        <div class="mb-3 p-3 bg-gray-50 rounded-lg">
-                                            <p class="text-sm text-gray-700">
+                                        <div class="mb-3 p-3 bg-gray-50 dark:bg-zinc-900/40 rounded-lg">
+                                            <p class="text-sm text-gray-700 dark:text-gray-200">
                                                 <strong>Message:</strong> "{{ $request->request_message }}"
                                             </p>
                                         </div>
                                     @endif
 
-                                    <div class="flex items-center space-x-4 text-sm text-gray-600">
+                                    <div class="flex items-center space-x-4 text-sm text-[#9B9EA4] dark:text-zinc-400">
                                         <span class="px-2 py-1 text-xs font-medium rounded-full
                                             @if($request->status === 'accepted') bg-green-100 text-green-800
                                             @elseif($request->status === 'declined') bg-red-100 text-red-800
@@ -199,8 +199,8 @@ $canManageRequests = computed(function () {
                                     </div>
 
                                     @if($request->status !== 'pending' && $request->response_message)
-                                        <div class="mt-3 p-3 bg-gray-50 rounded-lg">
-                                            <p class="text-sm text-gray-700">
+                                        <div class="mt-3 p-3 bg-gray-50 dark:bg-zinc-900/40 rounded-lg">
+                                            <p class="text-sm text-gray-700 dark:text-gray-200">
                                                 <strong>Response:</strong> "{{ $request->response_message }}"
                                             </p>
                                         </div>
@@ -215,11 +215,11 @@ $canManageRequests = computed(function () {
 
         <!-- Empty State -->
         @if($this->allRequests->count() === 0)
-            <div class="bg-white rounded-lg shadow-sm border p-6">
-                <div class="text-center py-12">
+            <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
+                <div class="text-center py-12 text-[#9B9EA4] dark:text-zinc-400">
                     <flux:icon name="user-plus" class="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                    <h3 class="text-lg font-medium text-gray-900 mb-2">No Collaboration Requests</h3>
-                    <p class="text-gray-500">
+                    <h3 class="text-lg font-medium text-[#231F20] dark:text-white mb-2">No Collaboration Requests</h3>
+                    <p>
                         When someone requests to collaborate on this idea, it will appear here.
                     </p>
                 </div>
