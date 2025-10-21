@@ -49,14 +49,14 @@ new #[Layout('components.layouts.app')] class extends Component {
         'perPage' => ['except' => 10],
     ];
 
-    /**
-     * Get the ideas for the current user
-     */
     public function getIdeas()
     {
         $query = Idea::where('user_id', Auth::id())
             ->with(['thematicArea'])
-            ->withCount('comments')
+            ->withCount(['comments' => function ($query) {
+                $query->whereNull('deleted_at') // Only count active (non-deleted) comments
+                      ->where('comment_is_disabled', false); // Only count enabled comments
+            }])
             ->when($this->search, function (Builder $query) {
                 $query->where(function (Builder $q) {
                     $q->where('idea_title', 'like', '%' . $this->search . '%')
@@ -726,7 +726,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                     <div
                                         x-show="open"
                                         x-transition
-                                        class="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white dark:bg-zinc-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+                                        class="absolute right-0 z-10 mt-2 w-fit origin-top-right rounded-md bg-white dark:bg-zinc-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
                                         role="menu"
                                         aria-orientation="vertical"
                                         tabindex="-1"
@@ -734,6 +734,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                                         <div class="py-1" role="none">
                                             <a
                                                 href="{{ route('ideas.comments', $idea->slug) }}"
+                                                wire:navigate
                                                 class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700"
                                                 role="menuitem"
                                                 tabindex="-1"
@@ -745,6 +746,42 @@ new #[Layout('components.layouts.app')] class extends Component {
                                                     {{ $idea->comments_count ?? 0 }}
                                                 </span>
                                             </a>
+
+                                            <a
+                                                href="{{ route('ideas.collaboration.dashboard') }}"
+                                                wire:navigate
+                                                class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700"
+                                                role="menuitem"
+                                                tabindex="-1"
+                                            >
+                                                <flux:icon name="user-group" class="mr-2 h-4 w-4" />
+                                                {{ __('Manage Collaborations') }}
+                                            </a>
+
+                                            @php
+                                                $hasPendingDdRevisions = $idea->revisions()
+                                                    ->where('status', 'pending')
+                                                    ->whereHas('createdByUser', function($query) {
+                                                        $query->role(['deputy_director']);
+                                                    })
+                                                    ->exists();
+                                            @endphp
+
+                                            @if($hasPendingDdRevisions)
+                                                <a
+                                                    href="{{ route('ideas.show', $idea->slug) }}#revisions"
+                                                    wire:navigate
+                                                    class="flex items-center px-4 py-2 text-sm text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                                                    role="menuitem"
+                                                    tabindex="-1"
+                                                >
+                                                    <flux:icon name="document-text" class="mr-2 h-4 w-4" />
+                                                    {{ __('Revise Idea') }}
+                                                    <span class="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-400">
+                                                        !
+                                                    </span>
+                                                </a>
+                                            @endif
                                         </div>
                                     </div>
                                 </div>
