@@ -130,11 +130,61 @@ new #[Layout('components.layouts.app')] class extends Component {
             })
             ->take(15);
     }
+
+    /**
+     * Approve a collaboration request
+     */
+    public function approveRequest($requestId)
+    {
+        $request = IdeaCollaborationRequest::findOrFail($requestId);
+        $user = Auth::user();
+
+        // Verify the user owns the idea
+        if ($request->idea->user_id !== $user->id) {
+            session()->flash('error', 'You can only approve requests for your own ideas.');
+            return;
+        }
+
+        try {
+            app(\App\Services\CollaborationService::class)->acceptRequest($request, $user);
+            session()->flash('success', 'Collaboration request approved successfully!');
+            
+            // Refresh the data
+            unset($this->getRequestsToReview);
+        } catch (\Exception $e) {
+            session()->flash('error', 'Failed to approve request: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Reject a collaboration request
+     */
+    public function rejectRequest($requestId)
+    {
+        $request = IdeaCollaborationRequest::findOrFail($requestId);
+        $user = Auth::user();
+
+        // Verify the user owns the idea
+        if ($request->idea->user_id !== $user->id) {
+            session()->flash('error', 'You can only reject requests for your own ideas.');
+            return;
+        }
+
+        try {
+            app(\App\Services\CollaborationService::class)->declineRequest($request, $user, 'Request declined by author');
+            session()->flash('success', 'Collaboration request rejected.');
+            
+            // Refresh the data
+            unset($this->getRequestsToReview);
+        } catch (\Exception $e) {
+            session()->flash('error', 'Failed to reject request: ' . $e->getMessage());
+        }
+    }
 };
 ?>
 
-<div class="min-h-screen bg-gradient-to-br from-[#F8EBD5]/20 via-white to-[#F8EBD5] dark:from-zinc-900/20 dark:via-zinc-800 dark:to-zinc-900">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<div class="backdrop-blur-lg">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 border border-zinc-200 dark:border-yellow-400 rounded-3xl bg-gradient-to-br from-[#F8EBD5]/20 via-white to-[#F8EBD5] dark:from-zinc-900/20 dark:via-zinc-800 dark:to-zinc-900 border">
 
         <!-- Header -->
         <div class="mb-8">
@@ -160,7 +210,7 @@ new #[Layout('components.layouts.app')] class extends Component {
         </div>
 
         <!-- Stats Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
                 <div class="flex items-center">
                     <div class="p-3 rounded-xl bg-blue-100 dark:bg-blue-900/20">
@@ -211,8 +261,8 @@ new #[Layout('components.layouts.app')] class extends Component {
         </div>
 
         <!-- Main Content Tabs -->
-        <div x-data="{ activeTab: $wire.activeTab }" class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700">
-            <div class="border-b border-[#9B9EA4]/20 dark:border-zinc-700">
+        <div x-data="{ activeTab: $wire.activeTab }" class="border border-zinc-200 dark:border-yellow-400 rounded-3xl bg-gradient-to-br from-[#F8EBD5]/20 via-white to-[#F8EBD5] dark:from-zinc-900/20 dark:via-zinc-800 dark:to-zinc-900 border">
+            <div class="border-b border-zinc-200 dark:border-yellow-400">
                 <nav class="flex">
                     <button
                         @click="activeTab = 'overview'"
@@ -455,16 +505,18 @@ new #[Layout('components.layouts.app')] class extends Component {
                                             </div>
                                             <div class="flex gap-2">
                                                 <flux:button
-                                                    wire:click="$dispatch('approve-request', {{ $request->id }})"
-                                                    variant="ghost"
+                                                    icon="check-badge"
+                                                    wire:click="approveRequest({{ $request->id }})"
+                                                    variant="primary"
                                                     size="sm"
                                                     color="green"
                                                 >
                                                     {{ __('Approve') }}
                                                 </flux:button>
                                                 <flux:button
-                                                    wire:click="$dispatch('reject-request', {{ $request->id }})"
-                                                    variant="ghost"
+                                                    icon="trash"
+                                                    wire:click="rejectRequest({{ $request->id }})"
+                                                    variant="primary"
                                                     size="sm"
                                                     color="red"
                                                 >
@@ -487,4 +539,46 @@ new #[Layout('components.layouts.app')] class extends Component {
         </div>
 
     </div>
+
+    <style>
+        /* Custom Scrollbar for better UX */
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #F8EBD5;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #FFF200;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #F4E000;
+        }
+
+        .dark ::-webkit-scrollbar-track {
+            background: #374151;
+        }
+
+        .dark ::-webkit-scrollbar-thumb {
+            background: #F59E0B;
+        }
+
+        .dark ::-webkit-scrollbar-thumb:hover {
+            background: #D97706;
+        }
+
+        /* Smooth transitions for all interactive elements */
+        * {
+            transition: all 0.2s ease-in-out;
+        }
+
+        /* Input focus enhancement */
+        input:focus, select:focus {
+            box-shadow: 0 0 0 3px rgba(255, 242, 0, 0.1);
+        }
+    </style>
 </div>
