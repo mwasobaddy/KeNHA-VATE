@@ -20,15 +20,13 @@ class CollaborationService
     ) {}
 
     /**
-     * Send a collaboration invitation to a user.
+     * Send an invitation to collaborate on an idea.
      */
     public function sendInvitation(
         Idea $idea,
         User $invitee,
-        User $inviter,
-        string $permissions = 'read',
-        string $message = null
-    ): IdeaCollaborationRequest {
+        ?string $message = null
+    ): IdeaCollaboration {
         return DB::transaction(function () use ($idea, $invitee, $inviter, $permissions, $message) {
             // Check if invitation already exists
             $existingRequest = $idea->collaborationRequests()
@@ -63,6 +61,75 @@ class CollaborationService
                 'info',
                 'Collaboration Invitation',
                 "You've been invited to collaborate on '{$idea->idea_title}' by {$inviter->name}.",
+                route('ideas.collaboration.requests')
+            );
+
+            return $request;
+        });
+    }
+
+    /**
+     * Submit a collaboration request to an idea author.
+     */
+    public function submitCollaborationRequest(
+        Idea $idea,
+        User $requester,
+        string $requestMessage,
+        ?string $proposedContribution = null,
+        ?string $experience = null
+    ): IdeaCollaborationRequest {
+        return DB::transaction(function () use ($idea, $requester, $requestMessage, $proposedContribution, $experience) {
+            // Validate that collaboration is enabled
+            if (!$idea->isCollaborationEnabled()) {
+                throw new \InvalidArgumentException('Collaboration is not enabled for this idea');
+            }
+
+            // Check if user is the author
+            if ($idea->isAuthor($requester)) {
+                throw new \InvalidArgumentException('You cannot request collaboration on your own idea');
+            }
+
+            // Check if user is already a collaborator
+            if ($idea->isCollaborator($requester)) {
+                throw new \InvalidArgumentException('You are already a collaborator on this idea');
+            }
+
+            // Check if a pending request already exists
+            $existingRequest = $idea->collaborationRequests()
+                ->where('requester_id', $requester->id)
+                ->where('status', 'pending')
+                ->first();
+
+            if ($existingRequest) {
+                throw new \InvalidArgumentException('You already have a pending collaboration request for this idea');
+            }
+
+            // Create the collaboration request
+            $request = IdeaCollaborationRequest::create([
+                'idea_id' => $idea->id,
+                'requester_id' => $requester->id,
+                'request_message' => $requestMessage,
+                'proposed_contribution' => $proposedContribution,
+                'requester_experience' => $experience,
+                'status' => 'pending',
+                'requested_at' => now(),
+            ]);
+
+            // Audit the request
+            $this->auditService->logUserActivity($requester, 'collaboration_request_submitted', [
+                'idea_id' => $idea->id,
+                'request_id' => $request->id,
+                'request_message' => $requestMessage,
+                'proposed_contribution' => $proposedContribution,
+                'requester_experience' => $experience,
+            ]);
+
+            // Notify the idea author
+            $this->notificationService->notify(
+                $idea->user,
+                'info',
+                'New Collaboration Request',
+                "{$requester->name} has requested to collaborate on your idea '{$idea->idea_title}'.",
                 route('ideas.collaboration.requests')
             );
 
@@ -106,7 +173,7 @@ class CollaborationService
     /**
      * Decline a collaboration invitation.
      */
-    public function declineInvitation(IdeaCollaborationRequest $request, User $invitee, string $reason = null): bool
+    public function declineInvitation(IdeaCollaborationRequest $request, User $invitee, ?string $reason = null): bool
     {
         return DB::transaction(function () use ($request, $invitee, $reason) {
             $success = $request->decline($invitee, $reason);
@@ -126,6 +193,99 @@ class CollaborationService
                     'warning',
                     'Collaboration Invitation Declined',
                     "{$invitee->name} has declined your invitation to collaborate on '{$request->idea->idea_title}'." .
+                    ($reason ? " Reason: {$reason}" : ''),
+                    route('ideas.show', $request->idea->slug)
+                );
+            }
+
+            return $success;
+        });
+    }
+
+    /**
+     * Accept a collaboration request from a user.
+     */
+    public function acceptRequest(IdeaCollaborationRequest $request, User $author): IdeaCollaborator
+    {
+        return DB::transaction(function () use ($request, $author) {
+            // Verify the author owns the idea
+            if ($request->idea->user_id !== $author->id) {
+                throw new \InvalidArgumentException('Only the idea author can accept collaboration requests.');
+            }
+
+            // Accept the request and create collaborator
+            $collaborator = IdeaCollaborator::create([
+                'idea_id' => $request->idea_id,
+                'user_id' => $request->requester_id,
+                'permission_level' => 'suggest', // Default permission level
+                'invited_by_user_id' => $author->id, // The author is accepting the request
+                'status' => 'active',
+                'accepted_at' => now(),
+            ]);
+
+            // Update the request status
+            $request->update([
+                'status' => 'accepted',
+                'response_at' => now(),
+            ]);
+
+            // Audit the acceptance
+            $this->auditService->logUserActivity($author, 'collaboration_request_accepted', [
+                'idea_id' => $request->idea_id,
+                'request_id' => $request->id,
+                'requester_id' => $request->requester_id,
+                'collaborator_id' => $collaborator->id,
+            ]);
+
+            // Award points for successful collaboration
+            $this->pointService->awardCollaborationPoints($request->requester, 'request_accepted');
+
+            // Notify the requester
+            $this->notificationService->notify(
+                $request->requester,
+                'success',
+                'Collaboration Request Accepted',
+                "{$author->name} has accepted your collaboration request for '{$request->idea->idea_title}'! You can now contribute to this idea.",
+                route('ideas.show', $request->idea->slug)
+            );
+
+            return $collaborator;
+        });
+    }
+
+    /**
+     * Decline a collaboration request from a user.
+     */
+    public function declineRequest(IdeaCollaborationRequest $request, User $author, ?string $reason = null): bool
+    {
+        return DB::transaction(function () use ($request, $author, $reason) {
+            // Verify the author owns the idea
+            if ($request->idea->user_id !== $author->id) {
+                throw new \InvalidArgumentException('Only the idea author can decline collaboration requests.');
+            }
+
+            // Decline the request
+            $success = $request->update([
+                'status' => 'declined',
+                'response_at' => now(),
+                'response_message' => $reason,
+            ]);
+
+            if ($success) {
+                // Audit the decline
+                $this->auditService->logUserActivity($author, 'collaboration_request_declined', [
+                    'idea_id' => $request->idea_id,
+                    'request_id' => $request->id,
+                    'requester_id' => $request->requester_id,
+                    'decline_reason' => $reason,
+                ]);
+
+                // Notify the requester
+                $this->notificationService->notify(
+                    $request->requester,
+                    'warning',
+                    'Collaboration Request Declined',
+                    "{$author->name} has declined your collaboration request for '{$request->idea->idea_title}'." .
                     ($reason ? " Reason: {$reason}" : ''),
                     route('ideas.show', $request->idea->slug)
                 );
@@ -174,7 +334,7 @@ class CollaborationService
     /**
      * Remove a collaborator from an idea.
      */
-    public function removeCollaborator(IdeaCollaborator $collaborator, User $removedBy, string $reason = null): bool
+    public function removeCollaborator(IdeaCollaborator $collaborator, User $removedBy, ?string $reason = null): bool
     {
         return DB::transaction(function () use ($collaborator, $removedBy, $reason) {
             $success = $collaborator->remove($removedBy, $reason);
