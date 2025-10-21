@@ -47,13 +47,14 @@ class RolePermissionSeeder extends Seeder
 
         // Create roles
         $developerRole = Role::firstOrCreate(['name' => 'developer']);
-        $supervisorRole = Role::firstOrCreate(['name' => 'supervisor']);
+        $deputy_directorRole = Role::firstOrCreate(['name' => 'deputy_director']);
+        $ideaReviewerRole = Role::firstOrCreate(['name' => 'idea_reviewer']);
         $userRole = Role::firstOrCreate(['name' => 'user']);
 
         // Assign permissions to roles
         $developerRole->syncPermissions(Permission::all());
 
-        $supervisorRole->syncPermissions([
+        $deputy_directorRole->syncPermissions([
             'view dashboard',
             'view profile',
             'edit profile',
