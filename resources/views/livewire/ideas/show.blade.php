@@ -8,6 +8,41 @@ use Illuminate\Support\Facades\Auth;
 
 new #[Layout('components.layouts.app')] class extends Component {
     public $idea;
+    public $showCollaboratorsModal = false;
+    public $showRevisionsModal = false;
+    public $showRequestsModal = false;
+
+    protected $listeners = [
+        'revision-suggested' => '$refresh',
+    ];
+
+    // Computed property for current user permissions
+    public function getUserPermissionsProperty()
+    {
+        if (!$this->idea || !auth()->check()) {
+            return null;
+        }
+
+        $user = auth()->user();
+        $userId = $user->id;
+
+        // First check if user is a collaborator - collaborators should see their collaborator permissions
+        $collaborator = \App\Models\IdeaCollaborator::where('idea_id', $this->idea->id)
+            ->where('user_id', $userId)
+            ->where('status', 'active')
+            ->first();
+
+        if ($collaborator) {
+            return $collaborator->permission_level;
+        }
+
+        // If not a collaborator, check if user can manage collaboration (author or manager)
+        if ($user->hasPermissionTo('manage_collaboration') || $this->idea->user_id === $userId) {
+            return 'manage';
+        }
+
+        return null;
+    }
 
     /**
      * Mount the component with the idea
@@ -48,8 +83,15 @@ new #[Layout('components.layouts.app')] class extends Component {
                 abort(404, 'Idea not found or not available for public viewing');
             }
         } else {
-            // For authenticated views, ensure the user owns this idea
-            if ($ideaModel->user_id !== Auth::id()) {
+            // For authenticated views, ensure the user owns this idea or is a collaborator
+            $userId = Auth::id();
+            $isOwner = $ideaModel->user_id === $userId;
+            $isCollaborator = \App\Models\IdeaCollaborator::where('idea_id', $ideaModel->id)
+                ->where('user_id', $userId)
+                ->where('status', 'active')
+                ->exists();
+
+            if (!$isOwner && !$isCollaborator) {
                 abort(403, 'Unauthorized');
             }
         }
@@ -61,6 +103,22 @@ new #[Layout('components.layouts.app')] class extends Component {
         $this->idea->comments_count = \App\Models\Comment::where('idea_id', $this->idea->id)
             ->where('comment_is_disabled', false)
             ->count();
+
+        // Handle modal URL parameter
+        $modal = request()->query('modal');
+        if ($modal && $ideaModel->collaboration_enabled) {
+            switch ($modal) {
+                case 'collaborators':
+                    $this->showCollaboratorsModal = true;
+                    break;
+                case 'revisions':
+                    $this->showRevisionsModal = true;
+                    break;
+                case 'requests':
+                    $this->showRequestsModal = true;
+                    break;
+            }
+        }
     }
 
     /**
@@ -68,6 +126,11 @@ new #[Layout('components.layouts.app')] class extends Component {
      */
     public function editIdea(): void
     {
+        // Ensure only the owner can edit
+        if ($this->idea->user_id !== Auth::id()) {
+            abort(403, 'Only the idea owner can edit this idea.');
+        }
+
         if (in_array($this->idea->status, ['draft', 'submitted'])) {
             if ($this->idea->status === 'draft') {
                 $this->redirect(route('ideas.edit_draft.draft', ['draft' => $this->idea->slug]), navigate: true);
@@ -102,6 +165,70 @@ new #[Layout('components.layouts.app')] class extends Component {
     {
         $url = route('ideas.pdf', $slug);
         $this->js("window.open('{$url}', '_blank')");
+    }
+
+    /**
+     * Suggest edit - for users with edit permissions
+     */
+    public function suggestEdit(): void
+    {
+        // For users with suggest permissions, open the suggest edit modal
+        // Dispatch globally — the modal listens for 'open-suggest-modal'
+        // Scoping with ->to(...) caused the compiled view to register a numeric
+        // listener name which produced the invalid "1Handler" method.
+        $this->dispatch('open-suggest-modal');
+    }
+
+    /**
+     * Open collaborators modal and update URL
+     */
+    public function openCollaboratorsModal(): void
+    {
+        $this->showCollaboratorsModal = true;
+        $this->updateUrl('collaborators');
+    }
+
+    /**
+     * Open revisions modal and update URL
+     */
+    public function openRevisionsModal(): void
+    {
+        $this->showRevisionsModal = true;
+        $this->updateUrl('revisions');
+    }
+
+    /**
+     * Open requests modal and update URL
+     */
+    public function openRequestsModal(): void
+    {
+        $this->showRequestsModal = true;
+        $this->updateUrl('requests');
+    }
+
+    /**
+     * Close all modals and update URL
+     */
+    public function closeModals(): void
+    {
+        $this->showCollaboratorsModal = false;
+        $this->showRevisionsModal = false;
+        $this->showRequestsModal = false;
+        $this->updateUrl(null);
+    }
+
+    /**
+     * Update URL with modal parameter
+     */
+    private function updateUrl(?string $modal): void
+    {
+        $isPublicView = request()->route() && str_contains(request()->route()->getName(), 'public');
+        $basePath = $isPublicView ? '/ideas/public/' : '/ideas/show/';
+        $fullPath = $basePath . $this->idea->slug;
+        $queryString = $modal ? '?modal=' . $modal : '';
+
+        $url = url($fullPath . $queryString);
+        $this->dispatch('url-updated', url: $url);
     }
 };
 ?>
@@ -138,8 +265,9 @@ new #[Layout('components.layouts.app')] class extends Component {
                 <div>
                     @php
                         $isPublicView = request()->route() && str_contains(request()->route()->getName(), 'public');
+                        $isOwner = $idea->user_id === Auth::id();
                     @endphp
-                    @if(in_array($idea->status, ['draft', 'submitted']) && !$isPublicView)
+                    @if(in_array($idea->status, ['draft', 'submitted']) && !$isPublicView && $isOwner)
                         <flux:button
                             icon="pencil-square"
                             wire:click="editIdea"
@@ -308,57 +436,99 @@ new #[Layout('components.layouts.app')] class extends Component {
 
                 <!-- Collaboration Section -->
                 @if($idea->collaboration_enabled)
-                    <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
-                        <div class="mb-6">
-                            <h2 class="text-xl font-semibold text-[#231F20] dark:text-white mb-4 flex items-center gap-2">
-                                <flux:icon name="users" class="w-5 h-5" />
-                                {{ __('Collaboration') }}
-                            </h2>
+                    <div class="space-y-6">
+                        <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
+                            <div class="mb-6">
+                                <h2 class="text-xl font-semibold text-[#231F20] dark:text-white mb-4 flex items-center gap-2">
+                                    <flux:icon name="users" class="w-5 h-5" />
+                                    {{ __('Collaboration') }}
+                                </h2>
 
-                            <!-- Collaboration Tabs -->
-                            <div x-data="{ activeTab: 'collaborators' }" class="w-full">
-                                <div class="border-b border-[#9B9EA4]/20 dark:border-zinc-700 mb-6">
-                                    <nav class="flex space-x-8">
-                                        <button
-                                            @click="activeTab = 'collaborators'"
-                                            :class="activeTab === 'collaborators' ? 'border-[#FFF200] text-[#231F20] dark:text-white' : 'border-transparent text-[#9B9EA4] dark:text-zinc-400 hover:text-[#231F20] dark:hover:text-white'"
-                                            class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200"
+                                <!-- Collaboration Action Buttons -->
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    @if($this->userPermissions === 'manage')
+                                        <flux:button
+                                            icon="users"
+                                            wire:click="openCollaboratorsModal"
+                                            variant="outline"
+                                            class="w-full justify-center"
                                         >
-                                            {{ __('Collaborators') }}
-                                        </button>
-                                        <button
-                                            @click="activeTab = 'revisions'"
-                                            :class="activeTab === 'revisions' ? 'border-[#FFF200] text-[#231F20] dark:text-white' : 'border-transparent text-[#9B9EA4] dark:text-zinc-400 hover:text-[#231F20] dark:hover:text-white'"
-                                            class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200"
+                                            {{ __('Manage Collaborators') }}
+                                        </flux:button>
+                                    @elseif($this->userPermissions === 'edit')
+                                        <flux:button
+                                            icon="pencil-square"
+                                            wire:click="suggestEdit"
+                                            variant="outline"
+                                            class="w-full justify-center"
                                         >
-                                            {{ __('Revision History') }}
-                                        </button>
-                                        <button
-                                            @click="activeTab = 'requests'"
-                                            :class="activeTab === 'requests' ? 'border-[#FFF200] text-[#231F20] dark:text-white' : 'border-transparent text-[#9B9EA4] dark:text-zinc-400 hover:text-[#231F20] dark:hover:text-white'"
-                                            class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200"
+                                            {{ __('Edit Idea') }}
+                                        </flux:button>
+                                    @elseif($this->userPermissions === 'suggest')
+                                        <flux:button
+                                            icon="light-bulb"
+                                            wire:click="openRevisionsModal"
+                                            variant="outline"
+                                            class="w-full justify-center"
                                         >
-                                            {{ __('Requests') }}
-                                        </button>
-                                    </nav>
-                                </div>
-
-                                <!-- Collaborators Tab -->
-                                <div x-show="activeTab === 'collaborators'" x-transition>
-                                    <livewire:ideas.collaboration-manager :idea="$idea" :key="'collaborators-'.$idea->id" />
-                                </div>
-
-                                <!-- Revisions Tab -->
-                                <div x-show="activeTab === 'revisions'" x-transition>
-                                    <livewire:ideas.revision-history :idea="$idea" :key="'revisions-'.$idea->id" />
-                                </div>
-
-                                <!-- Requests Tab -->
-                                <div x-show="activeTab === 'requests'" x-transition>
-                                    <livewire:ideas.collaboration-requests :idea="$idea" :key="'requests-'.$idea->id" />
+                                            {{ __('Suggest Edit') }}
+                                        </flux:button>
+                                    @endif
+                                    <flux:button
+                                        wire:click="openRevisionsModal"
+                                        variant="outline"
+                                        class="w-full justify-center"
+                                    >
+                                        <flux:icon name="clock" class="w-4 h-4 mr-2" />
+                                        {{ __('Revision History') }}
+                                    </flux:button>
+                                    <flux:button
+                                        wire:click="openRequestsModal"
+                                        variant="outline"
+                                        class="w-full justify-center"
+                                    >
+                                        <flux:icon name="user-plus" class="w-4 h-4 mr-2" />
+                                        {{ __('Collaboration Requests') }}
+                                    </flux:button>
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Collaborators Modal -->
+                        <flux:modal wire:model="showCollaboratorsModal" @close="closeModals" class="md:w-4xl">
+                            <div class="space-y-6">
+                                <div>
+                                    <flux:heading size="lg">Manage Collaborators</flux:heading>
+                                    <flux:subheading>Invite collaborators, manage permissions, and oversee team contributions</flux:subheading>
+                                </div>
+                                <livewire:ideas.collaboration-manager :idea="$idea" :key="'modal-collaborators-'.$idea->id" />
+                            </div>
+                        </flux:modal>
+
+                        <!-- Revisions Modal -->
+                        <flux:modal wire:model="showRevisionsModal" @close="closeModals" class="md:w-5xl">
+                            <div class="space-y-6">
+                                <div>
+                                    <flux:heading size="lg">Revision History</flux:heading>
+                                    <flux:subheading>View revision history, accept/reject changes, and suggest improvements</flux:subheading>
+                                </div>
+                                <livewire:ideas.revision-history :idea="$idea" :key="'modal-revisions-'.$idea->id" />
+                            </div>
+                        </flux:modal>
+
+                        <!-- Requests Modal -->
+                        <flux:modal wire:model="showRequestsModal" @close="closeModals" class="md:w-4xl">
+                            <div class="space-y-6">
+                                <div>
+                                    <flux:heading size="lg">Collaboration Requests</flux:heading>
+                                    <flux:subheading>Review and respond to collaboration requests from other users</flux:subheading>
+                                </div>
+                                <livewire:ideas.collaboration-requests :idea="$idea" :key="'modal-requests-'.$idea->id" />
+                            </div>
+                        </flux:modal>
+
+                        <!-- Suggest Edit Modal -->
+                        <livewire:ideas.suggest-edit-modal :idea="$idea" :key="'suggest-modal-'.$idea->id" />
                     </div>
                 @endif
 
@@ -475,7 +645,10 @@ new #[Layout('components.layouts.app')] class extends Component {
                 <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-[#9B9EA4]/20 dark:border-zinc-700 p-6">
                     <h3 class="text-lg font-semibold text-[#231F20] dark:text-white mb-4">Actions</h3>
                     <div class="space-y-3">
-                        @if(in_array($idea->status, ['draft', 'submitted']))
+                        @php
+                            $isOwner = $idea->user_id === Auth::id();
+                        @endphp
+                        @if(in_array($idea->status, ['draft', 'submitted']) && $isOwner)
                             <flux:button
                                 icon="pencil-square"
                                 wire:click="editIdea"
@@ -568,4 +741,12 @@ new #[Layout('components.layouts.app')] class extends Component {
             box-shadow: 0 0 0 3px rgba(255, 242, 0, 0.1);
         }
     </style>
+
+    <script>
+        document.addEventListener('livewire:initialized', () => {
+            Livewire.on('url-updated', (data) => {
+                history.replaceState({}, '', data.url);
+            });
+        });
+    </script>
 </div>
